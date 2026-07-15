@@ -92,7 +92,7 @@ class ProfileSelectPage extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  Icon(Icons.chevron_right_rounded, color: AppColors.brassBright),
+                                  const Icon(Icons.chevron_right_rounded, color: AppColors.brassBright),
                                 ],
                               ),
                             ),

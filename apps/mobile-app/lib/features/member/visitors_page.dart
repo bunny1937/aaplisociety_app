@@ -176,7 +176,7 @@ class _VisitorsPageState extends State<VisitorsPage> {
                     Haptics.success();
                     if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
                     _reload();
-                    if (mounted) showPulseToast(context, 'Gate pass request sent for approval', kind: PulseToastKind.success);
+                    if (context.mounted) showPulseToast(context, 'Gate pass request sent for approval', kind: PulseToastKind.success);
                   } on DioException catch (err) {
                     Haptics.heavy();
                     setSheet(() => submitting = false);

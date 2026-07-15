@@ -1,0 +1,4 @@
+{
+  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile=false && pnpm -r build",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+}

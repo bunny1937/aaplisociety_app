@@ -145,7 +145,7 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
             full: true,
             onTap: () async {
               final ok = await showMakePaymentSheet(context, bill: bill, amount: balance);
-              if (ok == true && mounted) {
+              if (ok == true && context.mounted) {
                 setState(() => _paid = true);
                 Navigator.of(context).pop(true);
               }

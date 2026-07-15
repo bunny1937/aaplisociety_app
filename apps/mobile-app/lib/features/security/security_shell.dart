@@ -94,7 +94,7 @@ class _SecurityShellState extends State<SecurityShell> {
                     ),
                     IconButton(
                       tooltip: 'Log out',
-                      icon: Icon(Icons.logout_rounded, color: AppColors.inkMuted),
+                      icon: const Icon(Icons.logout_rounded, color: AppColors.inkMuted),
                       onPressed: () { Haptics.heavy(); context.read<AuthBloc>().add(LogoutRequested()); context.go('/login'); },
                     ),
                   ],
@@ -118,7 +118,7 @@ class _SecurityShellState extends State<SecurityShell> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.qr_code_scanner_rounded, color: AppColors.inkMuted, size: 26),
+                            const Icon(Icons.qr_code_scanner_rounded, color: AppColors.inkMuted, size: 26),
                             const SizedBox(width: 14),
                             Expanded(child: Text('Scan visitor gate pass', style: GoogleFonts.manrope(color: context.headline, fontSize: 15, fontWeight: FontWeight.w600))),
                             Container(

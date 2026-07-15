@@ -11,7 +11,10 @@ import 'package:printing/printing.dart';
 /// `bill_format_sheet.dart` used before.
 Future<Uint8List> renderBillPdf(Map bill) async {
   final html = '${bill['billHtml'] ?? ''}';
-  final fallback = '<div style="font-family:Arial;padding:24px;">No bill content available.</div>';
+  const fallback = '<div style="font-family:Arial;padding:24px;">No bill content available.</div>';
+  // convertHtml has no drop-in replacement yet; switching to native pw.Widget
+  // layout (like renderReceiptPdf below) is a real rewrite, not a rename.
+  // ignore: deprecated_member_use
   return Printing.convertHtml(format: PdfPageFormat.a4, html: html.isNotEmpty ? html : fallback);
 }
 
@@ -32,7 +35,7 @@ Future<Uint8List> renderReceiptPdf(
       build: (context) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('PAYMENT RECEIPT', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+          pw.Text('PAYMENT RECEIPT', style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 12),
           pw.Text('Receipt No: ${receipt['receiptNo'] ?? '—'}'),
           pw.Text('Period: $periodLabel'),
@@ -42,8 +45,8 @@ Future<Uint8List> renderReceiptPdf(
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Amount paid', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-              pw.Text(formatInr(amount), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+              pw.Text('Amount paid', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+              pw.Text(formatInr(amount), style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
             ],
           ),
         ],

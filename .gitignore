@@ -220,3 +220,5 @@ localhost*.png
 # Backend local env
 apps/mobile-backend/env
 .env.example
+.vercel
+.env*

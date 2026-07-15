@@ -77,7 +77,7 @@ class MemberProfilePage extends StatelessWidget {
           ),
           _ParkingSection(slots: parkingSlots),
           _FamilySection(members: familyMembers),
-          _Section(icon: Icons.emergency_outlined, title: 'Emergency contact', rows: const [('Contact', null)]),
+          const _Section(icon: Icons.emergency_outlined, title: 'Emergency contact', rows: [('Contact', null)]),
           const SizedBox(height: 8),
           Text('More', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: t.fg1)),
           const SizedBox(height: 10),

@@ -113,7 +113,7 @@ class _ComplaintsPageState extends State<ComplaintsPage> {
                     Haptics.success();
                     if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
                     await _listKey.currentState?.reload();
-                    if (mounted) showPulseToast(context, 'Complaint raised', kind: PulseToastKind.success);
+                    if (context.mounted) showPulseToast(context, 'Complaint raised', kind: PulseToastKind.success);
                   } on DioException catch (err) {
                     Haptics.heavy();
                     setSheet(() { submitting = false; error = apiErrorMessage(err, 'Could not raise complaint'); });
@@ -277,7 +277,7 @@ class _ComplaintsPageState extends State<ComplaintsPage> {
                               children: [
                                 Row(
                                   children: [
-                                    Text('${_categoryEmoji[it['category']] ?? '📋'}', style: const TextStyle(fontSize: 16)),
+                                    Text(_categoryEmoji[it['category']] ?? '📋', style: const TextStyle(fontSize: 16)),
                                     const SizedBox(width: 6),
                                     Text('${it['category']}', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: t.fg4)),
                                     const Spacer(),

@@ -67,7 +67,7 @@ class _IllustrationPainter extends CustomPainter {
         canvas.drawCircle(c, r * 0.66, Paint()..color = tokens.success..style = PaintingStyle.stroke..strokeWidth = 2.5);
         _animatedCheck(canvas, c, r * 0.38, tokens.success, progress);
         if (kind == PulseIllo.celebrate) {
-          final dots = [Offset(-0.8, -0.7), Offset(0.85, -0.85), Offset(0.9, 0.7), Offset(-0.85, 0.9)];
+          const dots = [Offset(-0.8, -0.7), Offset(0.85, -0.85), Offset(0.9, 0.7), Offset(-0.85, 0.9)];
           final colors = [tokens.accent, tokens.brand, tokens.success, tokens.warning];
           for (var i = 0; i < dots.length; i++) {
             canvas.drawCircle(c + Offset(dots[i].dx * r, dots[i].dy * r), r * 0.045, Paint()..color = colors[i]);

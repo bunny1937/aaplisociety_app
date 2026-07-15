@@ -41,7 +41,7 @@ class LedgerVisitorCard extends StatelessWidget {
               CircleAvatar(
                 radius: 21,
                 backgroundColor: AppColors.brass.withValues(alpha: 0.14),
-                child: Icon(Icons.person_rounded, color: AppColors.brass),
+                child: const Icon(Icons.person_rounded, color: AppColors.brass),
               ),
               const SizedBox(width: 14),
               Expanded(

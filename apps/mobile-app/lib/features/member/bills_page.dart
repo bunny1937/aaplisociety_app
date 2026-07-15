@@ -71,7 +71,7 @@ class _BillsPageState extends State<BillsPage> {
             final b = raw as Map;
             final amount = (b['amount'] as num?) ?? 0;
             final paid = (b['amountPaid'] as num?) ?? 0;
-            if (b['status'] != 'Paid') outstanding += (amount - paid); else totalPaid += paid;
+            if (b['status'] != 'Paid') { outstanding += (amount - paid); } else { totalPaid += paid; }
             final st = effectiveStatus(b);
             if (counts.containsKey(st)) counts[st] = counts[st]! + 1;
           }
@@ -83,7 +83,7 @@ class _BillsPageState extends State<BillsPage> {
           return CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(
+              const SliverToBoxAdapter(
                 child: PulseTopBar(title: 'My Bills', subtitle: 'Maintenance bills for your flat'),
               ),
               SliverPadding(

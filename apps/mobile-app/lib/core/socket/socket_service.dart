@@ -1,16 +1,16 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as sio;
 import '../config/flavors.dart';
 
 class SocketService {
   SocketService._();
   static final instance = SocketService._();
 
-  IO.Socket? _socket;
+  sio.Socket? _socket;
   bool get isConnected => _socket?.connected ?? false;
 
   void connect(String accessToken, void Function(String event, dynamic data) onEvent) {
     if (_socket != null) dispose();
-    _socket = IO.io(AppConfig.current.socketUrl, IO.OptionBuilder()
+    _socket = sio.io(AppConfig.current.socketUrl, sio.OptionBuilder()
         .setTransports(['websocket'])
         .setPath('/socket')
         .setAuth({'token': accessToken})
