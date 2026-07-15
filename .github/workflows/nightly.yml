@@ -1,0 +1,62 @@
+name: Nightly
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
+  workflow_dispatch: {} # allow manual trigger from the Actions tab
+permissions:
+  contents: read
+jobs:
+  full-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.7.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm -r build
+      - run: pnpm -r typecheck
+      # test:all runs unit + integration + api + security + performance
+      # (the autocannon-based smoke test included) in one pass.
+      - run: pnpm -r test:all
+      - run: pnpm --filter @aapli/mobile-backend test:coverage
+      # Scoped to src/lib/jwt.ts only - full-repo mutation testing reruns the
+      # whole suite once per mutant and would be far too slow for every run;
+      # this file was picked as a small, pure, 100%-covered starting point.
+      - run: pnpm --filter @aapli/mobile-backend test:mutation
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-backend-coverage-and-reports
+          path: |
+            apps/mobile-backend/coverage/**
+            apps/mobile-backend/reports/**
+          retention-days: 30
+
+  flutter-full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable }
+      - working-directory: apps/mobile-app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test test/ --coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-flutter-coverage
+          path: apps/mobile-app/coverage/lcov.info
+          retention-days: 30
+
+  # Not wired in yet, deliberately - see docs/testing/README.md:
+  #   - Device-based Flutter integration_test / real E2E journey
+  #     (apps/mobile-app/integration_test/e2e_journey_test.dart) needs an
+  #     Android emulator action (e.g. reactivecircus/android-emulator-runner).
+  #     The test itself and its isolated real backend (apps/mobile-backend/
+  #     scripts/e2e-server.ts) are already built and verified working locally;
+  #     only the CI emulator wiring is the remaining step.

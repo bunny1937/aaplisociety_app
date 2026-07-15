@@ -1,0 +1,19 @@
+# Build stage
+FROM node:24-alpine AS build
+WORKDIR /app
+RUN npm i -g pnpm@9.7.0
+COPY pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
+COPY packages ./packages
+COPY apps/mobile-backend ./apps/mobile-backend
+RUN pnpm install --frozen-lockfile=false
+RUN pnpm -r --filter @aapli/mobile-backend... build
+
+# Runtime stage
+FROM node:24-alpine AS runtime
+WORKDIR /app
+RUN npm i -g pnpm@9.7.0
+ENV NODE_ENV=production
+COPY --from=build /app ./
+WORKDIR /app/apps/mobile-backend
+EXPOSE 5001
+CMD ["node", "dist/server.js"]

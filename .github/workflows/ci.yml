@@ -1,0 +1,66 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request: {}
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.7.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm -r build
+      - run: pnpm -r typecheck
+      # mongodb-memory-server downloads its own real mongod binary — no external
+      # DB/Redis service container needed for this suite (see docs/testing/README.md).
+      - run: pnpm -r test:coverage
+
+      - name: Publish backend JUnit report
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: "apps/mobile-backend/reports/junit.xml"
+          check_name: "Backend test results"
+
+      - name: Upload backend coverage + reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-and-reports
+          path: |
+            apps/mobile-backend/coverage/**
+            apps/mobile-backend/reports/**
+          retention-days: 14
+
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable }
+      - working-directory: apps/mobile-app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test test/ --coverage
+          flutter build apk --debug
+
+      - name: Upload Flutter coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-coverage
+          path: apps/mobile-app/coverage/lcov.info
+          retention-days: 14
+
+      # Device-based integration_test (apps/mobile-app/integration_test/) is NOT
+      # run here yet — needs an Android emulator action (e.g.
+      # reactivecircus/android-emulator-runner) wired in as a deliberate
+      # follow-up; see docs/testing/README.md for why it isn't included today.

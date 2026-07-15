@@ -1,0 +1,175 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
+import '../../core/theme/haptics.dart';
+import '../../core/socket/socket_bus.dart';
+import '../../core/widgets/async_view.dart';
+import 'pulse/pulse.dart';
+import 'pulse/notice_emoji.dart';
+
+/// Notices tab — port of ui_kits/member-v2 `ScreensNoticesComplaints.jsx`
+/// `NoticesScreen`: urgent-first section, acknowledge flow, segmented type
+/// filter. Design uses a fixed 5-type filter; kept the current app's
+/// dynamic tag-derived filtering instead (real `Notification.type`/`tag` is
+/// free text, no enum — see MEMBER_V2_GAPS.md) restyled to the design's
+/// segmented-pill look, with emoji mapped from the README table where a tag
+/// matches. Acknowledge is local-only state, same as the design mock (no
+/// backend ack endpoint exists).
+class NoticesPage extends StatefulWidget {
+  const NoticesPage({super.key});
+  @override
+  State<NoticesPage> createState() => _NoticesPageState();
+}
+
+class _NoticesPageState extends State<NoticesPage> {
+  final _listKey = GlobalKey<AsyncViewState<List>>();
+  String _filter = 'All';
+  final _acknowledged = <String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    SocketBus.noticeEvents.addListener(_onEvent);
+  }
+
+  @override
+  void dispose() {
+    SocketBus.noticeEvents.removeListener(_onEvent);
+    super.dispose();
+  }
+
+  void _onEvent() => _listKey.currentState?.reload();
+
+  String _tagOf(Map n) => '${n['tag'] ?? n['type'] ?? 'General'}';
+  bool _isUrgent(Map n) => n['priority'] == 'urgent' || n['priority'] == 'high';
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.pulse;
+    final dio = context.read<Dio>();
+    return SafeArea(
+      bottom: false,
+      child: AsyncView<List>(
+        key: _listKey,
+        fetch: () async => (await dio.get('/notices')).data as List,
+        builder: (context, allNotices) {
+          final tags = <String>{'All'};
+          for (final n in allNotices) { tags.add(_tagOf(n as Map)); }
+          final notices = _filter == 'All' ? allNotices : allNotices.where((n) => _tagOf(n as Map) == _filter).toList();
+          final urgent = notices.where((n) => _isUrgent(n as Map)).toList();
+          final rest = notices.where((n) => !_isUrgent(n as Map)).toList();
+
+          return CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              const SliverToBoxAdapter(child: PulseTopBar(title: 'Notice Board', subtitle: 'Society announcements')),
+              if (tags.length > 1)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: PulseSegmented<String>(
+                        value: _filter,
+                        onChanged: (v) => setState(() => _filter = v),
+                        options: tags.map((tg) => PulseSegmentedOption(value: tg, label: tg == 'All' ? 'All' : '${emojiForNoticeType(tg)} $tg')).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+              if (notices.isEmpty)
+                const SliverToBoxAdapter(child: PulseEmptyState(illo: PulseIllo.emptyInbox, title: 'No notices yet')),
+              if (urgent.isNotEmpty) ...[
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                  sliver: SliverToBoxAdapter(
+                    child: Text('🚨 Urgent', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: t.danger)),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                  sliver: SliverList.separated(
+                    itemCount: urgent.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, i) => _NoticeCard(
+                      notice: urgent[i] as Map,
+                      urgent: true,
+                      acknowledged: _acknowledged.contains('${(urgent[i] as Map)['_id']}'),
+                      onAcknowledge: () { Haptics.success(); setState(() => _acknowledged.add('${(urgent[i] as Map)['_id']}')); },
+                    ),
+                  ),
+                ),
+              ],
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                sliver: SliverList.separated(
+                  itemCount: rest.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) => _NoticeCard(notice: rest[i] as Map, urgent: false, acknowledged: false, onAcknowledge: null),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NoticeCard extends StatelessWidget {
+  final Map notice;
+  final bool urgent;
+  final bool acknowledged;
+  final VoidCallback? onAcknowledge;
+  const _NoticeCard({required this.notice, required this.urgent, required this.acknowledged, required this.onAcknowledge});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.pulse;
+    final tag = '${notice['tag'] ?? notice['type'] ?? 'General'}';
+    final pinned = notice['pinned'] == true;
+    final createdAt = DateTime.tryParse('${notice['createdAt']}');
+    final expiresAt = DateTime.tryParse('${notice['expiresAt']}');
+
+    return PulseCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(emojiForNoticeType(tag), style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 6),
+              if (pinned) Icon(Icons.push_pin_rounded, size: 13, color: t.brand),
+              const Spacer(),
+              if (urgent) const PulsePill(label: 'Urgent', tone: PulseTone.overdue, small: true),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('${notice['title'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: t.fg1)),
+          const SizedBox(height: 4),
+          Text('${notice['body'] ?? ''}', style: TextStyle(fontSize: 12.5, color: t.fg3, height: 1.45)),
+          const SizedBox(height: 8),
+          Text(
+            '— ${notice['createdByName'] ?? 'Society'}${createdAt != null ? ' · ${createdAt.day}/${createdAt.month}/${createdAt.year}' : ''}'
+            '${expiresAt != null ? ' · till ${expiresAt.day}/${expiresAt.month}' : ''}',
+            style: TextStyle(fontSize: 11, color: t.fg4),
+          ),
+          if (urgent) ...[
+            const SizedBox(height: 10),
+            if (acknowledged)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: t.successSoft, borderRadius: BorderRadius.circular(PulseTokens.radiusSm)),
+                child: Text('✓ Acknowledged', style: TextStyle(color: t.success, fontWeight: FontWeight.w700, fontSize: 12.5)),
+              )
+            else
+              PulseButton(label: '✋ Acknowledge this notice', full: true, size: PulseBtnSize.sm, variant: PulseBtnVariant.secondary, onTap: onAcknowledge),
+          ],
+        ],
+      ),
+    );
+  }
+}
