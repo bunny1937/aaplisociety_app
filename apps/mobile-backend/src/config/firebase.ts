@@ -30,4 +30,4 @@ export function firebaseApp(): admin.app.App {
   return app
 }
 
-export const messaging = () => firebaseApp().messaging()
+export const messaging = (): admin.messaging.Messaging => firebaseApp().messaging()

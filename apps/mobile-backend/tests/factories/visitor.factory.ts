@@ -11,10 +11,10 @@ export function makeVisitor(overrides: Record<string, unknown> = {}) {
     vehicleNumber: undefined,
     purpose: "Delivery",
     status: "Pending",
-    escalationLevel: 1,
+    entryMethod: "Manual",
     approvedBy: undefined,
-    enteredAt: undefined,
-    exitedAt: undefined,
+    entryTime: undefined,
+    exitTime: undefined,
     ...overrides,
   }
 }

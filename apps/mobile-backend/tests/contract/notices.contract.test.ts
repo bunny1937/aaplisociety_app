@@ -12,13 +12,16 @@ const app = createApp()
 // Whole-shape contract check for a Notice list item, complementing the
 // field-by-field spot checks in tests/api/notices.api.test.ts.
 describe("contract: GET /v1/notices", () => {
-  it("each item in the list matches noticeItemSchema exactly, including a posted (postedBy set) notice", async () => {
+  it("each item in the list matches noticeItemSchema exactly, including a posted (createdBy set) notice", async () => {
     const societyId = randomObjectId()
-    await Notice.create({ societyId, title: "Regular update", body: "Nothing urgent", pinned: false })
+    await Notice.create({
+      societyId, createdBy: randomObjectId(), createdByName: "Seed Admin",
+      type: "maintenance", title: "Regular update", description: "Nothing urgent", pinned: false,
+    })
 
     const adminToken = bearerToken({ role: ROLES.ADMIN, societyId: String(societyId) })
     await request(app).post("/v1/notices").set(authHeader(adminToken)).send({
-      title: "AGM Scheduled", body: "Annual general meeting on the 15th", tag: "Event", pinned: true,
+      type: "event", title: "AGM Scheduled Meeting", description: "Annual general meeting on the 15th at the clubhouse.", pinned: true,
     })
 
     const res = await request(app).get("/v1/notices").set(authHeader(adminToken))

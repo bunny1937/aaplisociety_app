@@ -11,8 +11,14 @@ const app = createApp()
 describe("GET /v1/notices", () => {
   it("is readable by any authenticated role, with pinned notices sorted first", async () => {
     const societyId = randomObjectId()
-    const unpinned = await Notice.create({ societyId, title: "Regular update", body: "Nothing urgent", pinned: false })
-    const pinned = await Notice.create({ societyId, title: "Water shutdown", body: "Water off 10am-2pm", pinned: true })
+    const unpinned = await Notice.create({
+      societyId, createdBy: randomObjectId(), createdByName: "Admin One",
+      type: "maintenance", title: "Regular update", description: "Nothing urgent", pinned: false,
+    })
+    const pinned = await Notice.create({
+      societyId, createdBy: randomObjectId(), createdByName: "Admin One",
+      type: "water", title: "Water shutdown notice", description: "Water off 10am-2pm for maintenance work", pinned: true,
+    })
 
     const memberToken = bearerToken({ role: ROLES.MEMBER, societyId: String(societyId) })
     const memberRes = await request(app).get("/v1/notices").set(authHeader(memberToken))
@@ -32,7 +38,7 @@ describe("POST /v1/notices", () => {
   it("rejects Member with 403", async () => {
     const token = bearerToken({ role: ROLES.MEMBER })
     const res = await request(app).post("/v1/notices").set(authHeader(token)).send({
-      title: "Notice title", body: "Notice body text",
+      type: "custom", title: "Notice title here", description: "Notice body text long enough to pass validation.",
     })
     expect(res.status).toBe(403)
     expect(res.body).toEqual({ error: "Forbidden" })
@@ -42,11 +48,13 @@ describe("POST /v1/notices", () => {
     const societyId = randomObjectId()
     const token = bearerToken({ role: ROLES.ADMIN, societyId: String(societyId) })
     const res = await request(app).post("/v1/notices").set(authHeader(token)).send({
-      title: "AGM Scheduled", body: "Annual general meeting on the 15th", tag: "Event", pinned: true,
+      type: "meeting", title: "AGM Scheduled Meeting", description: "Annual general meeting on the 15th at the clubhouse.", pinned: true,
     })
     expect(res.status).toBe(201)
-    expect(res.body.title).toBe("AGM Scheduled")
+    expect(res.body.title).toBe("AGM Scheduled Meeting")
     expect(res.body.societyId).toBe(String(societyId))
     expect(res.body.pinned).toBe(true)
+    expect(res.body.createdBy).toEqual(expect.any(String))
+    expect(res.body.createdByName).toEqual(expect.any(String))
   })
 })

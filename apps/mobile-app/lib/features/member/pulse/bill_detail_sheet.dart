@@ -31,34 +31,53 @@ class _BillDetailBody extends StatefulWidget {
 class _BillDetailBodyState extends State<_BillDetailBody> {
   bool _paid = false;
   String _tab = 'Bill';
-  Map? _lastReceipt;
+  // This bill's OWN receipt — shown directly when this bill itself is Paid.
+  Map? _ownReceipt;
+  // A DIFFERENT, earlier-period receipt shown as a reference tab only when
+  // viewing a bill that isn't itself paid yet (e.g. viewing June while May
+  // is already settled) — was previously the only receipt lookup this sheet
+  // did, which meant a bill could never show its OWN receipt: opening May's
+  // (now paid) bill directly found nothing, since there was no later bill
+  // to "reference" it from, and June hadn't been generated yet.
+  Map? _priorReceipt;
 
   @override
   void initState() {
     super.initState();
-    _loadLastReceipt();
+    _loadReceipts();
   }
 
-  // Finds the most recent receipt from a period strictly before this bill's
-  // — e.g. viewing the June bill surfaces May's paid receipt as a reference,
-  // so a member can compare before paying instead of digging through the
-  // separate Receipts tab.
-  Future<void> _loadLastReceipt() async {
+  Future<void> _loadReceipts() async {
     try {
       final dio = context.read<Dio>();
       final res = await dio.get('/receipts');
       final receipts = (res.data as List).cast<Map>();
       final billPeriod = '${widget.bill['billPeriodId'] ?? ''}';
-      List<Map> candidates;
+
+      Map? own;
       if (billPeriod.isNotEmpty) {
-        candidates = receipts.where((r) => '${r['billPeriodId'] ?? ''}'.compareTo(billPeriod) < 0).toList()
+        final ownMatches = receipts.where((r) => '${r['billPeriodId'] ?? ''}' == billPeriod).toList()
+          ..sort((a, b) => '${b['paidAt'] ?? ''}'.compareTo('${a['paidAt'] ?? ''}'));
+        if (ownMatches.isNotEmpty) own = ownMatches.first;
+      }
+
+      List<Map> priorCandidates;
+      if (billPeriod.isNotEmpty) {
+        priorCandidates = receipts.where((r) => '${r['billPeriodId'] ?? ''}'.compareTo(billPeriod) < 0).toList()
           ..sort((a, b) => '${b['billPeriodId'] ?? ''}'.compareTo('${a['billPeriodId'] ?? ''}'));
       } else {
-        candidates = receipts.where((r) => '${r['billId'] ?? ''}' != '${widget.bill['_id'] ?? ''}').toList();
+        priorCandidates = receipts.where((r) => '${r['billId'] ?? ''}' != '${widget.bill['_id'] ?? ''}').toList();
       }
-      if (mounted && candidates.isNotEmpty) setState(() => _lastReceipt = candidates.first);
+
+      if (mounted) {
+        setState(() {
+          _ownReceipt = own;
+          _priorReceipt = priorCandidates.isNotEmpty ? priorCandidates.first : null;
+        });
+      }
     } catch (_) {
-      // No receipts endpoint reachable / none exist yet — tab simply doesn't show.
+      // No receipts endpoint reachable / none exist yet — falls back to the
+      // plain "fully settled" message with no receipt details.
     }
   }
 
@@ -72,6 +91,8 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
     final balance = amount - paidAmt;
     final settled = _paid || status == 'Paid';
     final charges = (bill['charges'] as Map?)?.cast<String, dynamic>();
+    final previousBalance = (bill['previousBalance'] as num?) ?? 0;
+    final interest = (bill['currentInterest'] as num?) ?? (bill['interestAmount'] as num?) ?? (bill['billInterestBalance'] as num?) ?? 0;
     final tone = switch (status) { 'Paid' => PulseTone.paid, 'Partial' => PulseTone.partial, 'Overdue' => PulseTone.overdue, _ => PulseTone.unpaid };
 
     return Column(
@@ -84,20 +105,20 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
             PulsePill(label: settled ? 'Paid' : status, tone: settled ? PulseTone.paid : tone),
           ],
         ),
-        if (_lastReceipt != null) ...[
+        if (!settled && _priorReceipt != null) ...[
           const SizedBox(height: 14),
           PulseSegmented<String>(
             value: _tab,
             onChanged: (v) => setState(() => _tab = v),
             options: [
               PulseSegmentedOption(value: 'Bill', label: billTitle(bill)),
-              PulseSegmentedOption(value: 'Receipt', label: 'Last paid · ${_lastReceipt!['periodLabel'] ?? ''}', icon: Icons.receipt_long_rounded),
+              PulseSegmentedOption(value: 'Receipt', label: 'Last paid · ${_priorReceipt!['periodLabel'] ?? ''}', icon: Icons.receipt_long_rounded),
             ],
           ),
         ],
         const SizedBox(height: 14),
-        if (_tab == 'Receipt' && _lastReceipt != null)
-          _LastReceiptView(receipt: _lastReceipt!)
+        if (!settled && _tab == 'Receipt' && _priorReceipt != null)
+          _ReceiptView(receipt: _priorReceipt!)
         else ...[
         if (charges != null && charges.isNotEmpty)
           PulseCard(
@@ -115,6 +136,15 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
                         ],
                       ),
                     )),
+                // "Total" below already includes these two (it's the raw
+                // totalAmount/totalBillDue from the backend), but neither
+                // was ever broken out as its own line — a member had no way
+                // to see why Total exceeded the sum of the itemized charges
+                // above, e.g. this month's interest for an overdue bill.
+                if (previousBalance > 0)
+                  _extraChargeRow(t, 'Previous balance carried forward', previousBalance),
+                if (interest > 0)
+                  _extraChargeRow(t, 'Interest on overdue balance', interest, warn: true),
                 Container(
                   margin: const EdgeInsets.only(top: 2),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -122,7 +152,7 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Total', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: t.brand)),
+                      Text('Total Due', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: t.brand)),
                       Text(inr(amount), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: t.brand)),
                     ],
                   ),
@@ -151,12 +181,24 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
               }
             },
           )
+        else if (_ownReceipt != null)
+          // The bill itself is Paid AND has a real receipt on file - show it
+          // directly here instead of a bare "fully settled" message. This is
+          // the fix for bills that are their own most-recent period (no
+          // later bill exists yet to reference them from via _priorReceipt).
+          _ReceiptView(receipt: _ownReceipt!)
         else
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12),
             alignment: Alignment.center,
             decoration: BoxDecoration(color: t.successSoft, borderRadius: BorderRadius.circular(14)),
-            child: Text('This bill is fully settled', style: TextStyle(color: t.success, fontWeight: FontWeight.w700, fontSize: 13.5)),
+            child: Column(
+              children: [
+                Text('This bill is fully settled', style: TextStyle(color: t.success, fontWeight: FontWeight.w700, fontSize: 13.5)),
+                const SizedBox(height: 4),
+                Text('No receipt on file for this payment', style: TextStyle(color: t.success.withValues(alpha: 0.75), fontSize: 11.5)),
+              ],
+            ),
           ),
         const SizedBox(height: 10),
         PulseButton(
@@ -199,9 +241,23 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
   }
 }
 
-class _LastReceiptView extends StatelessWidget {
+Widget _extraChargeRow(PulseTokens t, String label, num value, {bool warn = false}) {
+  final color = warn ? t.danger : t.fg2;
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(child: Text(label, style: TextStyle(fontSize: 13, color: warn ? t.danger : t.fg3, fontWeight: warn ? FontWeight.w600 : FontWeight.normal))),
+        Text(inr(value), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+      ],
+    ),
+  );
+}
+
+class _ReceiptView extends StatelessWidget {
   final Map receipt;
-  const _LastReceiptView({required this.receipt});
+  const _ReceiptView({required this.receipt});
 
   @override
   Widget build(BuildContext context) {

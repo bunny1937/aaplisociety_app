@@ -1,4 +1,5 @@
 import type { Role } from "@aapli/constants"
+import type { OccupancyType } from "@aapli/constants"
 
 export interface LoginRequest { identifier: string; password: string }
 export interface AuthTokens { accessToken: string; refreshToken: string }
@@ -17,6 +18,7 @@ export interface JwtClaims {
   memberId?: string
   activeProfileId?: string
   societyCode?: string
+  occupancyType?: OccupancyType
   pending?: boolean
   mustChangePassword?: boolean
 }

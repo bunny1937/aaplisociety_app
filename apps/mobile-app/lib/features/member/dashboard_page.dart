@@ -9,7 +9,8 @@ import 'pulse/pulse.dart';
 import 'pulse/notice_emoji.dart';
 import 'pulse/member_display.dart';
 import 'member_shell.dart';
-import 'bills_page.dart' show effectiveStatus, billTitle;
+import 'bills_page.dart' show effectiveStatus, billTitle, inr;
+import 'notices_page.dart' show showNoticesSheet;
 
 class _DashData {
   final List bills;
@@ -143,7 +144,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     PulseIconButton(
                       icon: Icons.notifications_outlined,
                       badge: urgentNotices,
-                      onTap: () => memberTabNotifier.value = 2,
+                      onTap: () => showNoticesSheet(context, context.read<Dio>()),
                     ),
                   ],
                 ),
@@ -189,8 +190,6 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 }
-
-String _inr(num n) => '₹${n.abs().round().toString().replaceAllMapped(RegExp(r'(\d)(?=(\d\d)+\d$)'), (m) => '${m[1]},')}';
 
 class _HeroBillCard extends StatelessWidget {
   final Map bill;
@@ -252,7 +251,7 @@ class _HeroBillCard extends StatelessWidget {
                       children: [
                         Text('$period · Maintenance', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
                         const SizedBox(height: 6),
-                        Text(_inr(due > 0 ? due : amount), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                        Text(inr(due > 0 ? due : amount), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                         const SizedBox(height: 4),
                         Text(
                           due > 0
@@ -289,14 +288,21 @@ class _HeroBillCard extends StatelessWidget {
               const SizedBox(height: 18),
               Row(
                 children: [
-                  Expanded(
-                    child: PulseButton(
-                      label: overdue ? 'Pay now — overdue' : 'Pay now',
-                      variant: PulseBtnVariant.secondary,
-                      onTap: () => memberTabNotifier.value = 1,
+                  // "Pay now" only makes sense when something's actually due —
+                  // this card falls back to the member's most recent bill even
+                  // when it's fully paid (see DashboardPage's currentBill ??=
+                  // fallback), and previously showed "Pay now" unconditionally,
+                  // contradicting the "Paid in full" text right above it.
+                  if (due > 0) ...[
+                    Expanded(
+                      child: PulseButton(
+                        label: overdue ? 'Pay now — overdue' : 'Pay now',
+                        variant: PulseBtnVariant.secondary,
+                        onTap: () => memberTabNotifier.value = 1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
+                    const SizedBox(width: 10),
+                  ],
                   Expanded(
                     child: PulseButton(
                       label: 'View bill',
@@ -412,7 +418,7 @@ class _SnapshotCard extends StatelessWidget {
         children: [
           Text(label, style: TextStyle(fontSize: 11, color: t.fg4, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          Text(_inr(value), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: tone)),
+          Text(inr(value), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: tone)),
         ],
       ),
     );

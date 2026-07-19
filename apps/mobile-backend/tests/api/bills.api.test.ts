@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import request from "supertest"
 import { ROLES } from "@aapli/constants"
 import { createApp } from "../helpers/app.js"
@@ -44,6 +44,20 @@ describe("GET /v1/bills", () => {
   })
 })
 
+describe("GET /v1/bills — Tenant occupancy", () => {
+  it("returns an empty list for a Tenant-occupancy profile, even though the flat has bills", async () => {
+    const societyId = randomObjectId()
+    const memberId = randomObjectId()
+    await Bill.create(makeBill({ societyId, memberId, amount: 1500 }))
+    const tenantToken = bearerToken({
+      role: ROLES.MEMBER, societyId: String(societyId), memberId: String(memberId), occupancyType: "Tenant",
+    } as any)
+    const res = await request(app).get("/v1/bills").set(authHeader(tenantToken))
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([])
+  })
+})
+
 describe("POST /v1/bills", () => {
   it("rejects Member role with 403", async () => {
     const token = bearerToken({ role: ROLES.MEMBER })
@@ -54,22 +68,69 @@ describe("POST /v1/bills", () => {
     expect(res.body).toEqual({ error: "Forbidden" })
   })
 
-  it("creates a bill as Admin with status Unpaid", async () => {
+  // Writes into this collection are shared with the production web app's
+  // billing engine and are disabled by default (BILL_WRITES_ENABLED) until
+  // schema convergence — see docs/migration audit. Confirms the kill switch
+  // actually blocks the write, not just returns an error after writing.
+  it("is disabled by default: rejects an otherwise-valid Admin request with 403 and creates no Bill", async () => {
     const societyId = randomObjectId()
     const memberId = randomObjectId()
     const token = bearerToken({ role: ROLES.ADMIN, societyId: String(societyId) })
     const res = await request(app).post("/v1/bills").set(authHeader(token)).send({
       memberId: String(memberId), period: "2026-Q2", amount: 1500, dueDate: "2026-09-01",
     })
-    expect(res.status).toBe(201)
-    expect(res.body.status).toBe("Unpaid")
-    expect(res.body.amount).toBe(1500)
-    expect(res.body.societyId).toBe(String(societyId))
-    expect(res.body.amountPaid).toBe(0)
+    expect(res.status).toBe(403)
+    expect(res.body).toEqual({ error: "Bill creation is temporarily disabled. Contact your society admin." })
+    expect(await Bill.countDocuments({ societyId })).toBe(0)
+  })
+
+  it("creates a bill as Admin with status Unpaid, when explicitly re-enabled via BILL_WRITES_ENABLED", async () => {
+    process.env.BILL_WRITES_ENABLED = "true"
+    try {
+      const societyId = randomObjectId()
+      const memberId = randomObjectId()
+      const token = bearerToken({ role: ROLES.ADMIN, societyId: String(societyId) })
+      const res = await request(app).post("/v1/bills").set(authHeader(token)).send({
+        memberId: String(memberId), period: "2026-Q2", amount: 1500, dueDate: "2026-09-01",
+      })
+      expect(res.status).toBe(201)
+      expect(res.body.status).toBe("Unpaid")
+      expect(res.body.amount).toBe(1500)
+      expect(res.body.societyId).toBe(String(societyId))
+      expect(res.body.amountPaid).toBe(0)
+    } finally {
+      delete process.env.BILL_WRITES_ENABLED
+    }
   })
 })
 
-describe("POST /v1/bills/:id/pay", () => {
+describe("POST /v1/bills/:id/pay (disabled by default)", () => {
+  it("rejects an otherwise-valid payment with 403 and leaves the bill unchanged", async () => {
+    const societyId = randomObjectId()
+    const memberId = randomObjectId()
+    const bill = await Bill.create(makeBill({ societyId, memberId, amount: 1000, amountPaid: 0 }))
+    const token = bearerToken({ role: ROLES.MEMBER, societyId: String(societyId), memberId: String(memberId) })
+
+    const res = await request(app).post(`/v1/bills/${bill._id}/pay`).set(authHeader(token)).send({
+      amount: 400, paymentMode: "UPI",
+    })
+    expect(res.status).toBe(403)
+    expect(res.body).toEqual({ error: "Online payment is not available. Please contact your society admin." })
+
+    const unchanged = await Bill.findById(bill._id)
+    expect(unchanged!.amountPaid).toBe(0)
+    expect(await Payment.countDocuments({ billId: bill._id })).toBe(0)
+  })
+})
+
+describe("POST /v1/bills/:id/pay (BILL_WRITES_ENABLED=true)", () => {
+  beforeEach(() => {
+    process.env.BILL_WRITES_ENABLED = "true"
+  })
+  afterEach(() => {
+    delete process.env.BILL_WRITES_ENABLED
+  })
+
   it("a partial payment moves status to Partial, then a second payment completes it to Paid, creating Payment docs", async () => {
     const societyId = randomObjectId()
     const memberId = randomObjectId()

@@ -1,0 +1,583 @@
+﻿[ +265 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[        ] executing: [C:\flutter/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[ +145 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[   +2 ms] 2026-07-08 15:02:06 -0700
+[  +46 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +7 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[ +241 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[  +36 ms] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +3 ms] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[ +160 ms] Skipping pub get: version match.
+[ +377 ms] Found plugin integration_test at C:\flutter\packages\integration_test\
+[+1154 ms] Found plugin url_launcher at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[  +17 ms] Found plugin url_launcher_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[  +57 ms] Found plugin url_launcher_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.3\
+[  +37 ms] Found plugin url_launcher_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[  +23 ms] Found plugin url_launcher_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[  +15 ms] Found plugin url_launcher_ios at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.4.1\
+[  +20 ms] Found plugin url_launcher_android at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\
+[ +206 ms] Found plugin share_plus at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\share_plus-12.0.2\
+[ +101 ms] Found plugin path_provider at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.6\
+[  +22 ms] Found plugin path_provider_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[  +39 ms] Found plugin path_provider_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.2\
+[  +41 ms] Found plugin path_provider_foundation at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.6.0\
+[  +88 ms] Found plugin path_provider_android at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.3.1\
+[  +24 ms] Found plugin jni_flutter at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\jni_flutter-1.0.1\
+[  +18 ms] Found plugin jni at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\jni-1.0.0\
+[  +40 ms] Found plugin printing at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\printing-5.15.0\
+[ +361 ms] Found plugin image_picker at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker-1.2.3\
+[  +27 ms] Found plugin image_picker_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_windows-0.2.2\
+[  +52 ms] Found plugin file_selector_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_windows-0.9.3+5\
+[  +56 ms] Found plugin image_picker_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_macos-0.2.2+1\
+[  +32 ms] Found plugin file_selector_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_macos-0.9.5\
+[  +42 ms] Found plugin image_picker_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_linux-0.2.2\
+[  +27 ms] Found plugin file_selector_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_linux-0.9.4\
+[  +38 ms] Found plugin image_picker_ios at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_ios-0.8.13+6\
+[  +40 ms] Found plugin image_picker_for_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_for_web-3.1.1\
+[  +40 ms] Found plugin image_picker_android at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+19\
+[  +31 ms] Found plugin flutter_plugin_android_lifecycle at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_plugin_android_lifecycle-2.0.35\
+[ +186 ms] Found plugin flutter_secure_storage at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage-9.2.4\
+[  +35 ms] Found plugin flutter_secure_storage_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_windows-3.1.2\
+[  +61 ms] Found plugin flutter_secure_storage_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_web-1.2.1\
+[  +33 ms] Found plugin flutter_secure_storage_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_macos-3.1.3\
+[ +200 ms] Found plugin flutter_secure_storage_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_linux-1.2.3\
+[ +116 ms] Found plugin firebase_remote_config at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_remote_config-5.1.0\
+[  +23 ms] Found plugin firebase_remote_config_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_remote_config_web-1.6.13\
+[  +45 ms] Found plugin firebase_core at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-3.15.0\
+[  +30 ms] Found plugin firebase_core_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-2.24.0\
+[  +53 ms] Found plugin firebase_messaging at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging-15.1.0\
+[  +15 ms] Found plugin firebase_messaging_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging_web-3.10.8\
+[  +34 ms] Found plugin file_picker at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_picker-8.3.7\
+[ +178 ms] Found plugin integration_test at C:\flutter\packages\integration_test\
+[  +89 ms] Found plugin url_launcher at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +1 ms] Found plugin url_launcher_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +4 ms] Found plugin url_launcher_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.3\
+[   +3 ms] Found plugin url_launcher_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +1 ms] Found plugin url_launcher_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +2 ms] Found plugin url_launcher_ios at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.4.1\
+[   +2 ms] Found plugin url_launcher_android at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\
+[  +12 ms] Found plugin share_plus at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\share_plus-12.0.2\
+[   +5 ms] Found plugin path_provider at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.6\
+[   +1 ms] Found plugin path_provider_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[   +4 ms] Found plugin path_provider_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.2\
+[   +5 ms] Found plugin path_provider_foundation at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.6.0\
+[   +9 ms] Found plugin path_provider_android at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.3.1\
+[   +1 ms] Found plugin jni_flutter at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\jni_flutter-1.0.1\
+[   +1 ms] Found plugin jni at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\jni-1.0.0\
+[   +3 ms] Found plugin printing at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\printing-5.15.0\
+[  +26 ms] Found plugin image_picker at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker-1.2.3\
+[   +1 ms] Found plugin image_picker_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_windows-0.2.2\
+[   +2 ms] Found plugin file_selector_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_windows-0.9.3+5\
+[   +3 ms] Found plugin image_picker_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_macos-0.2.2+1\
+[   +1 ms] Found plugin file_selector_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_macos-0.9.5\
+[   +2 ms] Found plugin image_picker_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_linux-0.2.2\
+[   +2 ms] Found plugin file_selector_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_linux-0.9.4\
+[   +2 ms] Found plugin image_picker_ios at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_ios-0.8.13+6\
+[   +1 ms] Found plugin image_picker_for_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_for_web-3.1.1\
+[   +1 ms] Found plugin image_picker_android at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+19\
+[   +1 ms] Found plugin flutter_plugin_android_lifecycle at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_plugin_android_lifecycle-2.0.35\
+[   +5 ms] Found plugin flutter_secure_storage at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage-9.2.4\
+[   +1 ms] Found plugin flutter_secure_storage_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_windows-3.1.2\
+[   +2 ms] Found plugin flutter_secure_storage_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_web-1.2.1\
+[   +1 ms] Found plugin flutter_secure_storage_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_macos-3.1.3\
+[   +1 ms] Found plugin flutter_secure_storage_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_linux-1.2.3\
+[   +6 ms] Found plugin firebase_remote_config at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_remote_config-5.1.0\
+[   +3 ms] Found plugin firebase_remote_config_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_remote_config_web-1.6.13\
+[   +3 ms] Found plugin firebase_core at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-3.15.0\
+[   +2 ms] Found plugin firebase_core_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-2.24.0\
+[   +5 ms] Found plugin firebase_messaging at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging-15.1.0\
+[   +2 ms] Found plugin firebase_messaging_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging_web-3.10.8\
+[   +7 ms] Found plugin file_picker at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_picker-8.3.7\
+[  +17 ms] Skipping generating web_plugin_registrant.dart because it is up-to-date.
+[  +48 ms] Found plugin integration_test at C:\flutter\packages\integration_test\
+[  +79 ms] Found plugin url_launcher at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +2 ms] Found plugin url_launcher_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +7 ms] Found plugin url_launcher_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.3\
+[   +2 ms] Found plugin url_launcher_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +1 ms] Found plugin url_launcher_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +1 ms] Found plugin url_launcher_ios at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.4.1\
+[   +1 ms] Found plugin url_launcher_android at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\
+[  +15 ms] Found plugin share_plus at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\share_plus-12.0.2\
+[   +6 ms] Found plugin path_provider at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.6\
+[   +1 ms] Found plugin path_provider_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[   +2 ms] Found plugin path_provider_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.2\
+[   +2 ms] Found plugin path_provider_foundation at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.6.0\
+[   +6 ms] Found plugin path_provider_android at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.3.1\
+[   +1 ms] Found plugin jni_flutter at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\jni_flutter-1.0.1\
+[   +1 ms] Found plugin jni at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\jni-1.0.0\
+[   +2 ms] Found plugin printing at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\printing-5.15.0\
+[  +15 ms] Found plugin image_picker at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker-1.2.3\
+[   +1 ms] Found plugin image_picker_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_windows-0.2.2\
+[   +2 ms] Found plugin file_selector_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_windows-0.9.3+5\
+[   +2 ms] Found plugin image_picker_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_macos-0.2.2+1\
+[   +1 ms] Found plugin file_selector_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_macos-0.9.5\
+[   +1 ms] Found plugin image_picker_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_linux-0.2.2\
+[   +1 ms] Found plugin file_selector_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_linux-0.9.4\
+[   +2 ms] Found plugin image_picker_ios at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_ios-0.8.13+6\
+[   +1 ms] Found plugin image_picker_for_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_for_web-3.1.1\
+[   +1 ms] Found plugin image_picker_android at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+19\
+[   +1 ms] Found plugin flutter_plugin_android_lifecycle at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_plugin_android_lifecycle-2.0.35\
+[  +12 ms] Found plugin flutter_secure_storage at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage-9.2.4\
+[   +2 ms] Found plugin flutter_secure_storage_windows at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_windows-3.1.2\
+[   +3 ms] Found plugin flutter_secure_storage_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_web-1.2.1\
+[   +2 ms] Found plugin flutter_secure_storage_macos at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_macos-3.1.3\
+[   +2 ms] Found plugin flutter_secure_storage_linux at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage_linux-1.2.3\
+[   +9 ms] Found plugin firebase_remote_config at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_remote_config-5.1.0\
+[   +3 ms] Found plugin firebase_remote_config_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_remote_config_web-1.6.13\
+[   +2 ms] Found plugin firebase_core at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-3.15.0\
+[   +1 ms] Found plugin firebase_core_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-2.24.0\
+[   +3 ms] Found plugin firebase_messaging at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging-15.1.0\
+[   +1 ms] Found plugin firebase_messaging_web at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging_web-3.10.8\
+[   +3 ms] Found plugin file_picker at C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_picker-8.3.7\
+[ +270 ms] Generating C:\projects\AapliSociety_App\apps\mobile-app\android\app\src\main\java\io\flutter\plugins\GeneratedPluginRegistrant.java
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.java because it is up-to-date.
+[   +6 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +3 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +5 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +3 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +2 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +2 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +6 ms] Skipping generating GeneratedPluginRegistrant.h because it is up-to-date.
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.m because it is up-to-date.
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.swift because it is up-to-date.
+[ +165 ms] executing: C:\Program Files\Android\Android Studio\jbr\bin\java -version
+[ +218 ms] Exit code 0 from: C:\Program Files\Android\Android Studio\jbr\bin\java -version
+[        ] openjdk version "21.0.10" 2026-01-20
+           OpenJDK Runtime Environment (build 21.0.10+-14961533-b1163.108)
+           OpenJDK 64-Bit Server VM (build 21.0.10+-14961533-b1163.108, mixed mode)
+[  +13 ms] Top-level Gradle build file not found, skipping migration of task "clean".
+[   +3 ms] executing: C:\Program Files\Android\Android Studio\jbr\bin\java --version
+[ +230 ms] Exit code 0 from: C:\Program Files\Android\Android Studio\jbr\bin\java --version
+[        ] openjdk 21.0.10 2026-01-20
+           OpenJDK Runtime Environment (build 21.0.10+-14961533-b1163.108)
+           OpenJDK 64-Bit Server VM (build 21.0.10+-14961533-b1163.108, mixed mode)
+[   +2 ms] Version of Java is different than impacted version, no migration attempted.
+[   +5 ms] CMake project not found, skipping support Android 15 16k page size migration.
+[   +8 ms] The developer has already configured the Built-In Kotlin flag, skipping migration.
+[   +5 ms] The developer has already configured the new DSL flag, skipping migration.
+[   +7 ms] Using gradle from C:\projects\AapliSociety_App\apps\mobile-app\android\gradlew.bat.
+[  +17 ms] LocalFile: 'C:\projects\AapliSociety_App\apps\mobile-app\android\build.gradle.kts' doesn't provide an AGP version. Checking settings.
+[   +2 ms] LocalFile: 'C:\projects\AapliSociety_App\apps\mobile-app\android\settings.gradle.kts' provides AGP version: 8.9.1
+[   +7 ms] Running Gradle task 'assembleDebug'...
+[   +1 ms] executing: [C:\projects\AapliSociety_App\apps\mobile-app\android/] C:\projects\AapliSociety_App\apps\mobile-app\android\gradlew.bat --full-stacktrace --info -Pverbose=true -Ptarget-platform=android-arm,android-arm64,android-x64 -Ptarget=lib\main.dart -Pbase-application-name=android.app.Application -Pdart-defines=RkxVVFRFUl9WRVJTSU9OPTMuNDQuNg==,RkxVVFRFUl9DSEFOTkVMPXN0YWJsZQ==,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9mbHV0dGVyL2ZsdXR0ZXIuZ2l0,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049ZWU4MGYwOGJiZg==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049ODM2NzVlZDI3Ng==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMi4y -Pdart-obfuscation=false -Ptrack-widget-creation=true -Ptree-shake-icons=false assembleDebug
+[+3327 ms] Initialized native services in: C:\Users\Admin\.gradle\native
+[   +4 ms] Initialized jansi services in: C:\Users\Admin\.gradle\native
+[ +848 ms] Found daemon DaemonInfo{pid=9492, address=[824ccca2-dba6-4a81-b609-88199417a164 port:54911, addresses:[/127.0.0.1]], state=Idle, lastBusy=1784375902305, context=DefaultDaemonContext[uid=670c9d25-1b00-4333-9646-76f1842c0980,javaHome=C:\Program Files\Android\Android Studio\jbr,javaVersion=21,javaVendor=JetBrains s.r.o.,daemonRegistryDir=C:\Users\Admin\.gradle\daemon,pid=9492,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=-XX:MaxMetaspaceSize=1024m,-XX:ReservedCodeCacheSize=512m,-XX:+HeapDumpOnOutOfMemoryError,-Xmx4096m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+[   +1 ms] At least one daemon option is different.
+[   +1 ms] Wanted: DaemonRequestContext{jvmCriteria=C:\Program Files\Android\Android Studio\jbr (from org.gradle.java.home), daemonOpts=[-XX:MaxMetaspaceSize=384m, -XX:ReservedCodeCacheSize=128m, -XX:+UseSerialGC, -Xmx1536m, -Dfile.encoding=UTF-8, -Duser.country=US, -Duser.language=en, -Duser.variant], applyInstrumentationAgent=true, nativeServicesMode=ENABLED, priority=NORMAL}
+[        ] Actual: DefaultDaemonContext[uid=670c9d25-1b00-4333-9646-76f1842c0980,javaHome=C:\Program Files\Android\Android Studio\jbr,javaVersion=21,javaVendor=JetBrains s.r.o.,daemonRegistryDir=C:\Users\Admin\.gradle\daemon,pid=9492,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=-XX:MaxMetaspaceSize=1024m,-XX:ReservedCodeCacheSize=512m,-XX:+HeapDumpOnOutOfMemoryError,-Xmx4096m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]
+[        ]   Looking for a different daemon...
+[  +88 ms] Removing 0 daemon stop events from registry
+[  +99 ms] Previous Daemon (7224) stopped at Sat Jul 18 18:53:45 IST 2026 by user or operating system
+[   +1 ms] Starting a Gradle Daemon, 1 busy and 1 incompatible and 1 stopped Daemons could not be reused, use --status for details
+[   +1 ms] Received JVM installation metadata from 'C:\Program Files\Android\Android Studio\jbr': {JAVA_HOME=C:\Program Files\Android\Android Studio\jbr, JAVA_VERSION=21.0.10, JAVA_VENDOR=JetBrains s.r.o., RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=21.0.10+-14961533-b1163.108, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=21.0.10+-14961533-b1163.108, VM_VENDOR=JetBrains s.r.o., OS_ARCH=amd64}
+[ +298 ms] Starting process 'Gradle build daemon'. Working directory: C:\Users\Admin\.gradle\daemon\8.12 Command: C:\Program Files\Android\Android Studio\jbr\bin\java.exe --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED -XX:MaxMetaspaceSize=384m -XX:ReservedCodeCacheSize=128m -XX:+UseSerialGC -Xmx1536m -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -cp C:\Users\Admin\.gradle\wrapper\dists\gradle-8.12-all\ejduaidbjup3bmmkhw3rie4zb\gradle-8.12\lib\gradle-daemon-main-8.12.jar -javaagent:C:\Users\Admin\.gradle\wrapper\dists\gradle-8.12-all\ejduaidbjup3bmmkhw3rie4zb\gradle-8.12\lib\agents\gradle-instrumentation-agent-8.12.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.12
+[  +99 ms] Successfully started process 'Gradle build daemon'
+[+4158 ms] An attempt to start the daemon took 4.271 secs.
+[ +244 ms] The client will now receive all logging from the daemon (pid: 4616). The daemon log file: C:\Users\Admin\.gradle\daemon\8.12\daemon-4616.out.log
+[        ] Starting build in new daemon [memory: 1.4 GiB]
+[+2112 ms] Using 1 worker leases.
+[+1186 ms] Received JVM installation metadata from 'C:\Program Files\Android\Android Studio\jbr': {JAVA_HOME=C:\Program Files\Android\Android Studio\jbr, JAVA_VERSION=21.0.10, JAVA_VENDOR=JetBrains s.r.o., RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=21.0.10+-14961533-b1163.108, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=21.0.10+-14961533-b1163.108, VM_VENDOR=JetBrains s.r.o., OS_ARCH=amd64}
+[+1511 ms] Watching the file system is configured to be enabled if available
+[  +11 ms] Now considering [C:\projects\AapliSociety_App\apps\mobile-app\android] as hierarchies to watch
+[  +73 ms] File system watching is active
+[+1929 ms] Starting Build
+[+4999 ms] Now considering [C:\flutter\packages\flutter_tools\gradle, C:\projects\AapliSociety_App\apps\mobile-app\android] as hierarchies to watch
+[ +417 ms] Using local directory build cache for build ':gradle' (location = C:\Users\Admin\.gradle\caches\build-cache-1, remove unused entries = after 7 days).
+[+3303 ms] > Configure project :gradle
+[        ] Evaluating project ':gradle' using build file 'C:\flutter\packages\flutter_tools\gradle\build.gradle.kts'.
+[        ] Resolved plugin [id: 'org.gradle.java-gradle-plugin']
+[        ] Resolved plugin [id: 'org.gradle.groovy']
+[+1183 ms] Resolved plugin [id: 'org.gradle.kotlin.kotlin-dsl', version: '5.1.2']
+[  +79 ms] Resolved plugin [id: 'org.jetbrains.kotlin.jvm', version: '2.2.20']
+[+5812 ms] Build 9ff8c601-e7cb-44ed-8394-a1112b1ae4fd is started
+[ +478 ms] Using Kotlin Gradle Plugin gradle811 variant
+[ +793 ms] kotlin scripting plugin: created the scripting discovery configuration: kotlinScriptDef
+[  +94 ms] kotlin scripting plugin: created the scripting discovery configuration: testKotlinScriptDef
+[ +502 ms] WARNING: Unsupported Kotlin plugin version.
+[   +8 ms] The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.0.21` that might work differently than in the requested version `2.2.20`.
+[  +96 ms] file or directory 'C:\flutter\packages\flutter_tools\gradle\src\main\java', not found
+[+1393 ms] Resolved plugin [id: 'dev.flutter.flutter-plugin-loader', version: '1.0.0']
+[ +108 ms] Resolved plugin [id: 'com.android.application', version: '8.9.1', apply: false]
+[        ] Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.1.0', apply: false]
+[+1002 ms] Resolve mutations for :gradle:checkKotlinGradlePluginConfigurationErrors (Thread[#45,included builds,5,main]) started.
+[   +1 ms] :gradle:checkKotlinGradlePluginConfigurationErrors (Thread[#45,included builds,5,main]) started.
+[  +86 ms] > Task :gradle:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[        ] Skipping task ':gradle:checkKotlinGradlePluginConfigurationErrors' as task onlyIf 'errorDiagnostics are present' is false.
+[        ] Resolve mutations for :gradle:compileKotlin (Thread[#45,included builds,5,main]) started.
+[        ] :gradle:compileKotlin (Thread[#45,included builds,5,main]) started.
+[+1724 ms] > Task :gradle:compileKotlin UP-TO-DATE
+[        ] Build cache key for task ':gradle:compileKotlin' is bbcd13c47f749c40e535e715baa2efa4
+[        ] Skipping task ':gradle:compileKotlin' as it is up-to-date.
+[        ] Resolve mutations for :gradle:compileJava (Thread[#45,included builds,5,main]) started.
+[        ] :gradle:compileJava (Thread[#45,included builds,5,main]) started.
+[ +145 ms] > Task :gradle:compileJava NO-SOURCE
+[  +43 ms] Skipping task ':gradle:compileJava' as it has no source files and no previous output files.
+[  +23 ms] Resolve mutations for :gradle:compileGroovy (Thread[#45,included builds,5,main]) started.
+[   +1 ms] :gradle:compileGroovy (Thread[#45,included builds,5,main]) started.
+[   +1 ms] > Task :gradle:compileGroovy NO-SOURCE
+[   +2 ms] Skipping task ':gradle:compileGroovy' as it has no source files and no previous output files.
+[   +1 ms] Resolve mutations for :gradle:pluginDescriptors (Thread[#45,included builds,5,main]) started.
+[  +15 ms] :gradle:pluginDescriptors (Thread[#45,included builds,5,main]) started.
+[   +7 ms] > Task :gradle:pluginDescriptors UP-TO-DATE
+[   +6 ms] Caching disabled for task ':gradle:pluginDescriptors' because:
+[        ]   Not worth caching
+[   +1 ms] Skipping task ':gradle:pluginDescriptors' as it is up-to-date.
+[   +1 ms] Resolve mutations for :gradle:processResources (Thread[#45,included builds,5,main]) started.
+[        ] :gradle:processResources (Thread[#45,included builds,5,main]) started.
+[        ] > Task :gradle:processResources UP-TO-DATE
+[        ] Caching disabled for task ':gradle:processResources' because:
+[   +1 ms]   Not worth caching
+[        ] Skipping task ':gradle:processResources' as it is up-to-date.
+[        ] Resolve mutations for :gradle:classes (Thread[#45,included builds,5,main]) started.
+[        ] :gradle:classes (Thread[#45,included builds,5,main]) started.
+[   +1 ms] > Task :gradle:classes UP-TO-DATE
+[        ] Skipping task ':gradle:classes' as it has no actions.
+[        ] Resolve mutations for :gradle:jar (Thread[#45,included builds,5,main]) started.
+[        ] :gradle:jar (Thread[#45,included builds,5,main]) started.
+[        ] > Task :gradle:jar UP-TO-DATE
+[        ] Caching disabled for task ':gradle:jar' because:
+[        ]   Not worth caching
+[        ] Skipping task ':gradle:jar' as it is up-to-date.
+[+196429 ms] Settings evaluated using settings file 'C:\projects\AapliSociety_App\apps\mobile-app\android\settings.gradle.kts'.
+[   +8 ms] Using local directory build cache for the root build (location = C:\Users\Admin\.gradle\caches\build-cache-1, remove unused entries = after 7 days).
+[+6716 ms] Projects loaded. Root project using build file 'C:\projects\AapliSociety_App\apps\mobile-app\android\build.gradle.kts'.
+[  +16 ms] Included projects: [root project 'android', project ':app', project ':file_picker', project ':firebase_core', project ':firebase_messaging', project ':firebase_remote_config', project ':flutter_plugin_android_lifecycle', project ':flutter_secure_storage', project ':image_picker_android', project ':integration_test', project ':jni', project ':jni_flutter', project ':printing', project ':share_plus', project ':url_launcher_android']
+[+2229 ms] > Configure project :
+[   +8 ms] Evaluating root project 'android' using build file 'C:\projects\AapliSociety_App\apps\mobile-app\android\build.gradle.kts'.
+[+36524 ms] > Configure project :app
+[   +6 ms] Evaluating project ':app' using build file 'C:\projects\AapliSociety_App\apps\mobile-app\android\app\build.gradle.kts'.
+[   +7 ms] Resolved plugin [id: 'com.android.application']
+[   +2 ms] Resolved plugin [id: 'dev.flutter.flutter-gradle-plugin']
+[+109015 ms] Using default execution profile
+[+46872 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+44295 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+1981 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+1401 ms] Using Kotlin Gradle Plugin gradle85 variant
+[ +701 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+1434 ms] Using Kotlin Gradle Plugin gradle85 variant
+[ +760 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+1298 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+2808 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+5790 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+1717 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+3276 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+1816 ms] Using Kotlin Gradle Plugin gradle85 variant
+flutter : [+6074 ms] Warning: Flutter support for your project's Gradle version (8.12.0) will soon be dropped. Please upgrade your Gradle version to a version 
+of at least 8.14.0 soon.
+At line:3 char:1
++ flutter build apk --debug -v *> flutter_build_log.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([+6074 ms] Warn...st 8.14.0 soon.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[+2578 ms] Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+[ +502 ms] Potential fix: Your project's gradle version is typically defined in the gradle wrapper file. By default, this can be found at 
+C:\projects\AapliSociety_App\apps\mobile-app\android/gradle/wrapper/gradle-wrapper.properties. 
+[   +7 ms] For more information, see https://docs.gradle.org/current/userguide/gradle_wrapper.html.
+[   +9 ms] Warning: Flutter support for your project's Android Gradle Plugin version (Android Gradle Plugin version 8.9.1) will soon be dropped. Please 
+upgrade your Android Gradle Plugin version to a version of at least Android Gradle Plugin version 8.11.1 soon.
+[ +380 ms] Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+[+1019 ms] Potential fix: Your project's AGP version is typically defined in the plugins block of the `settings.gradle` file 
+(C:\projects\AapliSociety_App\apps\mobile-app\android/settings.gradle), by a plugin with the id of com.android.application. 
+[   +7 ms] If you don't see a plugins block, your project was likely created with an older template version. In this case it is most likely defined in the 
+top-level build.gradle file (C:\projects\AapliSociety_App\apps\mobile-app\android/build.gradle) by the following line in the dependencies block of the 
+buildscript: "classpath 'com.android.tools.build:gradle:<version>'".
+[   +8 ms] Warning: Flutter support for your project's Kotlin version (2.1.0) will soon be dropped. Please upgrade your Kotlin version to a version of at 
+least 2.2.20 soon.
+[   +3 ms] Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+[   +4 ms] Potential fix: Your project's KGP version is typically defined in the plugins block of the `settings.gradle` file 
+(C:\projects\AapliSociety_App\apps\mobile-app\android/settings.gradle), by a plugin with the id of org.jetbrains.kotlin.android. 
+[   +4 ms] If you don't see a plugins block, your project was likely created with an older template version, in which case it is most likely defined in the 
+top-level build.gradle file (C:\projects\AapliSociety_App\apps\mobile-app\android/build.gradle) by the ext.kotlin_version property.
+[+149232 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[ +236 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +37 ms] C/C++: ndk.dir in local.properties is not set
+[  +36 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +63 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[+3292 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +17 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +10 ms] C/C++: ndk.dir in local.properties is not set
+[   +8 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +17 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[+2741 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +5 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +4 ms] C/C++: ndk.dir in local.properties is not set
+[  +84 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[ +127 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[+5555 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +8 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +10 ms] C/C++: ndk.dir in local.properties is not set
+[  +10 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[ +274 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[+1242 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +7 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +7 ms] C/C++: ndk.dir in local.properties is not set
+[  +14 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +5 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[+1045 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +5 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +8 ms] C/C++: ndk.dir in local.properties is not set
+[   +9 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +6 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[+1657 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +95 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +4 ms] C/C++: ndk.dir in local.properties is not set
+[  +12 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +5 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +877 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[ +110 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +3 ms] C/C++: ndk.dir in local.properties is not set
+[ +319 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +6 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[  +71 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +62 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +9 ms] C/C++: ndk.dir in local.properties is not set
+[   +2 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[ +219 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +966 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +9 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +20 ms] C/C++: ndk.dir in local.properties is not set
+[  +19 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +15 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +994 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +13 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +10 ms] C/C++: ndk.dir in local.properties is not set
+[  +13 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[ +140 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +168 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +89 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +13 ms] C/C++: ndk.dir in local.properties is not set
+[   +6 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +6 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +821 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[ +136 ms] C/C++: android.ndkPath from module build.gradle is not set
+[ +645 ms] C/C++: ndk.dir in local.properties is not set
+[  +91 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +13 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[  +12 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +13 ms] C/C++: android.ndkPath from module build.gradle is not set
+[ +127 ms] C/C++: ndk.dir in local.properties is not set
+[   +7 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +6 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +675 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +5 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +3 ms] C/C++: ndk.dir in local.properties is not set
+[  +15 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +6 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +991 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +5 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +3 ms] C/C++: ndk.dir in local.properties is not set
+[   +3 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +2 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +308 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +5 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +6 ms] C/C++: ndk.dir in local.properties is not set
+[   +5 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +5 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +906 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +7 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +3 ms] C/C++: ndk.dir in local.properties is not set
+[   +9 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[ +176 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +518 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +4 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +4 ms] C/C++: ndk.dir in local.properties is not set
+[  +97 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +19 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[+89686 ms] > Configure project :file_picker
+[  +13 ms] Evaluating project ':file_picker' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\file_picker-8.3.7\android\build.gradle'.
+[+189232 ms] Using default execution profile
+[+120931 ms] > Configure project :firebase_core
+[  +68 ms] Evaluating project ':firebase_core' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-3.15.0\android\build.gradle'.
+[+16133 ms] Using default execution profile
+[+100738 ms] > Configure project :firebase_messaging
+[  +13 ms] Evaluating project ':firebase_messaging' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging-15.1.0\android\build.gradle'.
+[+154373 ms] Using default execution profile
+[+31702 ms] > Configure project :firebase_remote_config
+[  +55 ms] Evaluating project ':firebase_remote_config' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_remote_config-5.1.0\android\build.gradle'.
+[+6924 ms] Using default execution profile
+[+18469 ms] > Configure project :flutter_plugin_android_lifecycle
+[  +11 ms] Evaluating project ':flutter_plugin_android_lifecycle' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_plugin_android_lifecycle-2.0.35\android\build.gradle.kts'.
+[  +13 ms] Resolved plugin [id: 'com.android.library']
+[+97927 ms] Using default execution profile
+[+40919 ms] > Configure project :flutter_secure_storage
+[   +5 ms] Evaluating project ':flutter_secure_storage' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_secure_storage-9.2.4\android\build.gradle'.
+[+85640 ms] Using default execution profile
+[+43546 ms] > Configure project :image_picker_android
+[  +23 ms] Evaluating project ':image_picker_android' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+19\android\build.gradle.kts'.
+[  +74 ms] Resolved plugin [id: 'com.android.library']
+[+34862 ms] Using default execution profile
+[+18085 ms] > Configure project :integration_test
+[   +9 ms] Evaluating project ':integration_test' using build file 'C:\flutter\packages\integration_test\android\build.gradle.kts'.
+[   +6 ms] Resolved plugin [id: 'com.android.library']
+[+30689 ms] Using default execution profile
+[+16094 ms] > Configure project :jni
+[  +12 ms] Evaluating project ':jni' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\jni-1.0.0\android\build.gradle'.
+[ +791 ms] Using default execution profile
+[+13832 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +9 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +9 ms] C/C++: ndk.dir in local.properties is not set
+[   +5 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +63 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +163 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +5 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +7 ms] C/C++: ndk.dir in local.properties is not set
+[  +79 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +7 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +199 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +5 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +4 ms] C/C++: ndk.dir in local.properties is not set
+[   +7 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +3 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +463 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +16 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +9 ms] C/C++: ndk.dir in local.properties is not set
+[  +39 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +11 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[  +58 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +6 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +3 ms] C/C++: ndk.dir in local.properties is not set
+[   +4 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +77 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +267 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +11 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +59 ms] C/C++: ndk.dir in local.properties is not set
+[  +51 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +4 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +160 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +27 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +42 ms] C/C++: ndk.dir in local.properties is not set
+[   +5 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +10 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +159 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[ +140 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +9 ms] C/C++: ndk.dir in local.properties is not set
+[  +19 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +22 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +108 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +6 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +69 ms] C/C++: ndk.dir in local.properties is not set
+[   +8 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +9 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[  +89 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +7 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +7 ms] C/C++: ndk.dir in local.properties is not set
+[   +9 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +99 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +317 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +9 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +6 ms] C/C++: ndk.dir in local.properties is not set
+[   +4 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +3 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +264 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +5 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +3 ms] C/C++: ndk.dir in local.properties is not set
+[   +3 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +3 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +248 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +68 ms] C/C++: android.ndkPath from module build.gradle is not set
+[ +304 ms] C/C++: ndk.dir in local.properties is not set
+[ +211 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +8 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[   +4 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[  +16 ms] C/C++: android.ndkPath from module build.gradle is not set
+[  +22 ms] C/C++: ndk.dir in local.properties is not set
+[ +305 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +91 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[   +4 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +3 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +4 ms] C/C++: ndk.dir in local.properties is not set
+[   +3 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +3 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +451 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[ +128 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +7 ms] C/C++: ndk.dir in local.properties is not set
+[   +3 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[  +16 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[   +3 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +3 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +2 ms] C/C++: ndk.dir in local.properties is not set
+[  +55 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +5 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[  +17 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +9 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +5 ms] C/C++: ndk.dir in local.properties is not set
+[   +3 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +4 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[ +384 ms] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[   +5 ms] C/C++: android.ndkPath from module build.gradle is not set
+[   +4 ms] C/C++: ndk.dir in local.properties is not set
+[   +3 ms] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[   +2 ms] C/C++: sdkFolder is C:\Users\Admin\AppData\Local\Android\sdk
+[+4308 ms] > Configure project :jni_flutter
+[  +15 ms] Evaluating project ':jni_flutter' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\jni_flutter-1.0.1\android\build.gradle'.
+[ +542 ms] Using default execution profile
+[+8864 ms] > Configure project :printing
+[   +4 ms] Evaluating project ':printing' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\printing-5.15.0\android\build.gradle'.
+[+47488 ms] Using default execution profile
+[+4961 ms] > Configure project :share_plus
+[   +3 ms] Evaluating project ':share_plus' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\share_plus-12.0.2\android\build.gradle'.
+[+52267 ms] Using default execution profile
+[ +172 ms] Using Kotlin Gradle Plugin gradle85 variant
+[+9398 ms] > Configure project :url_launcher_android
+[   +3 ms] Evaluating project ':url_launcher_android' using build file 'C:\Users\Admin\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\android\build.gradle.kts'.
+[   +7 ms] Resolved plugin [id: 'com.android.library']
+[+29429 ms] Using default execution profile
+[+11689 ms] All projects evaluated.
+[ +961 ms] Task name matched 'assembleDebug'
+[   +6 ms] Selected primary task 'assembleDebug' from project :
+[+42441 ms] Adding -Xuse-inline-scopes-numbers Kotlin compiler flag for task :app:compileDebugKotlin

@@ -18,7 +18,17 @@ class MockDio extends Mock implements Dio {}
 /// A fake [RequestOptions] usable as a mocktail fallback value, and as the
 /// `requestOptions` for hand-built [Response]/[DioException] instances in
 /// tests.
-class FakeRequestOptions extends Fake implements RequestOptions {}
+///
+/// Overrides [preserveHeaderCase]: `Response`'s constructor always reads
+/// `requestOptions.preserveHeaderCase` (to build its default `Headers`)
+/// unless a `headers:` param is explicitly passed — a bare `Fake` throws
+/// `UnimplementedError` on any unstubbed getter, so every
+/// `Response(requestOptions: FakeRequestOptions(), ...)` in this codebase
+/// would otherwise fail at construction time.
+class FakeRequestOptions extends Fake implements RequestOptions {
+  @override
+  bool get preserveHeaderCase => false;
+}
 
 /// Registers fallback values mocktail needs for `any()` matchers against
 /// [MockDio] methods whose positional/named argument types aren't

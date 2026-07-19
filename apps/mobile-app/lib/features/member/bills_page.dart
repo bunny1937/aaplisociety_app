@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/socket/socket_bus.dart';
 import 'pulse/pulse.dart';
 import 'pulse/bill_detail_sheet.dart';
 
-String inr(num n) => '₹${n.abs().round().toString().replaceAllMapped(RegExp(r'(\d)(?=(\d\d)+\d$)'), (m) => '${m[1]},')}';
+// Was rounding to whole rupees and using plain 3-digit grouping - silently
+// showing ₹212.50 as ₹213 and losing Indian lakh/crore grouping. Matches the
+// web app's Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2,
+// maximumFractionDigits: 2 }) exactly (web/app must render the same paisa
+// amounts identically - see 2026-07-19 billing-display investigation).
+final _inrFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2);
+String inr(num n) => _inrFormat.format(n.abs());
 
 // The backend now always sends `periodLabel` (see
 // apps/mobile-backend/src/lib/periodLabel.ts) — this is the single place
@@ -64,6 +71,7 @@ class _BillsPageState extends State<BillsPage> {
       child: AsyncView<List>(
         key: _listKey,
         fetch: () async => (await dio.get('/bills')).data as List,
+        cacheKey: '/bills',
         builder: (context, allBills) {
           num outstanding = 0, totalPaid = 0;
           final counts = <String, int>{'Overdue': 0, 'Partial': 0, 'Paid': 0};
@@ -228,6 +236,12 @@ class _BillThumbCard extends StatelessWidget {
                   Text(billTitle(bill), style: const TextStyle(color: Colors.white70, fontSize: 10.5, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Text(inr(amount), style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
+                  // `amount` is totalAmount/totalBillDue (this month's charge
+                  // + any carried-over balance + interest), not just this
+                  // month's charge - label it so it isn't mistaken for the
+                  // "Current Bill" figure shown separately on the web admin
+                  // table, which is a smaller number for the same bill.
+                  Text('Total due', style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 9.5, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),

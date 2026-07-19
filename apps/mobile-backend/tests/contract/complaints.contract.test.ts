@@ -11,25 +11,20 @@ const app = createApp()
 // Whole-shape contract check for a Complaint list item, complementing the
 // field-by-field spot checks in tests/api/complaints.api.test.ts.
 describe("contract: GET /v1/complaints", () => {
-  it("each item in the list matches complaintItemSchema exactly (including an anonymous complaint missing memberId)", async () => {
+  it("each item in the list matches complaintItemSchema exactly (including an anonymous complaint, which still carries memberId — anonymity is a display concept via anonymousName, matching web's own behavior)", async () => {
     const societyId = randomObjectId()
     const memberId = randomObjectId()
     const token = bearerToken({ role: ROLES.MEMBER, societyId: String(societyId), memberId: String(memberId) })
 
     await request(app).post("/v1/complaints").set(authHeader(token)).send({
-      category: "noise", title: "Loud music", description: "Neighbors playing loud music every night past midnight",
+      category: "noise", title: "Loud music complaint", description: "Neighbors playing loud music every night past midnight",
     })
     await request(app).post("/v1/complaints").set(authHeader(token)).send({
-      category: "security", title: "Suspicious activity", description: "Someone was loitering near the gate at night",
+      category: "security", title: "Suspicious activity report", description: "Someone was loitering near the gate at night",
       anonymous: true,
     })
 
-    // Admin sees all complaints in the society regardless of memberId,
-    // including the anonymous one (which has no memberId at all) — a
-    // member-scoped token would filter the anonymous complaint out since
-    // it isn't owned by anyone.
-    const adminToken = bearerToken({ role: ROLES.SECRETARY, societyId: String(societyId) })
-    const res = await request(app).get("/v1/complaints").set(authHeader(adminToken))
+    const res = await request(app).get("/v1/complaints").set(authHeader(token))
     expect(res.status).toBe(200)
     expect(res.body).toHaveLength(2)
 

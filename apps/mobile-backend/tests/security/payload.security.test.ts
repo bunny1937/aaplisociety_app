@@ -7,11 +7,11 @@ import { bearerToken, authHeader } from "../helpers/auth.js"
 const app = createApp()
 
 describe("payload validation enforces real limits, not just types", () => {
-  it("rejects a complaint description far past its zod max length (2000) with 400", async () => {
+  it("rejects a complaint description past its zod max length (1000) with 400", async () => {
     const token = bearerToken({ role: ROLES.MEMBER })
-    const tooLong = "x".repeat(2001)
+    const tooLong = "x".repeat(1001)
     const res = await request(app).post("/v1/complaints").set(authHeader(token)).send({
-      category: "noise", title: "Valid title", description: tooLong,
+      category: "noise", title: "Valid title here", description: tooLong,
     })
     expect(res.status).toBe(400)
     expect(res.body.error.fieldErrors.description).toBeTruthy()

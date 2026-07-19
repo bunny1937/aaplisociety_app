@@ -1,14 +1,22 @@
 import { Router } from "express"
 import bcrypt from "bcryptjs"
-import { randomUUID } from "node:crypto"
-import { loginSchema, profileSelectSchema, changePasswordSchema, addMemberSchema } from "@aapli/validation"
-import { SOCIETY_ADMIN_ROLES } from "@aapli/constants"
+import crypto, { randomUUID } from "node:crypto"
+import { loginSchema, profileSelectSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "@aapli/validation"
+import { SOCIETY_ADMIN_ROLES, OCCUPANCY_TYPES } from "@aapli/constants"
 import { signAccess, signRefresh, verifyRefresh, refreshExpiresAt } from "../../lib/jwt.js"
-import { User, RefreshToken, Member, Society, Types } from "../../models/index.js"
+import { User, RefreshToken, Member, Society } from "../../models/index.js"
 import { requireAuth, requireAuthAllowPending, requireRoles } from "../../middleware/auth.js"
-import { loginLimiter } from "../../middleware/rateLimit.js"
+import { loginLimiter, forgotPasswordLimiter, resetPasswordLimiter } from "../../middleware/rateLimit.js"
+import { sendEmail, resetCodeEmailHtml } from "../../lib/brevo.js"
 
-export const authRouter = Router()
+export const authRouter: Router = Router()
+
+function sha256(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex")
+}
+
+const RESET_CODE_TTL_MS = 10 * 60 * 1000
+const RESET_MAX_ATTEMPTS = 5
 
 // Unified role-aware login for Member + Security + Admin staff
 authRouter.post("/login", loginLimiter, async (req, res) => {
@@ -40,7 +48,7 @@ authRouter.post("/login", loginLimiter, async (req, res) => {
 
   const profile = profiles.find((p: any) => String(p._id) === String(user.activeProfileId))
     ?? profiles[0]
-    ?? { societyId: (user as any).societyId, memberId: (user as any).memberId, role: user.role, status: "active" }
+    ?? { societyId: (user as any).societyId, memberId: (user as any).memberId, role: user.role, status: "Active" }
   return res.json(await issueTokens(user, profile))
 })
 
@@ -74,7 +82,9 @@ authRouter.post("/refresh", async (req, res) => {
 })
 
 authRouter.get("/me", requireAuth, async (req, res) => {
-  const user = await User.findById(req.auth!.userId).select("-passwordHash").lean()
+  const user = await User.findById(req.auth!.userId)
+    .select("-passwordHash -password -resetCodeHash -resetCodeExpiresAt -resetCodeAttempts")
+    .lean()
   if (!user) return res.status(404).json({ error: "User not found" })
 
   const [memberDoc, societyDoc] = await Promise.all([
@@ -127,44 +137,80 @@ authRouter.post("/change-password", requireAuth, async (req, res) => {
   const storedHash = (user as any).passwordHash ?? (user as any).password
   const ok = storedHash && (await bcrypt.compare(parsed.data.currentPassword, storedHash))
   if (!ok) return res.status(401).json({ error: "Current password is incorrect" })
-  ;(user as any).passwordHash = await bcrypt.hash(parsed.data.newPassword, 10)
+  // Write BOTH fields: the web app's login only ever reads `password`, never
+  // `passwordHash` — if we only set passwordHash here, a password changed via
+  // mobile silently stops working on the web app (web keeps honoring the old
+  // `password` value forever). Keeping both in sync avoids touching web's
+  // login route at all while closing that split-credential hole.
+  const newHash = await bcrypt.hash(parsed.data.newPassword, 10)
+  ;(user as any).passwordHash = newHash
+  ;(user as any).password = newHash
   ;(user as any).mustChangePassword = false
   await user.save()
   return res.json({ ok: true })
 })
 
-// Admin/Secretary onboards a new resident or staff login for their own society
-authRouter.post("/add-member", requireAuth, requireRoles(...SOCIETY_ADMIN_ROLES), async (req, res) => {
-  const parsed = addMemberSchema.safeParse(req.body)
+authRouter.post("/forgot-password", forgotPasswordLimiter, async (req, res) => {
+  const parsed = forgotPasswordSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
-  const taken = await User.findOne({ username: parsed.data.username })
-  if (taken) return res.status(409).json({ error: "Username already taken" })
+  const identifier = parsed.data.identifier
 
-  const admin = await User.findById(req.auth!.userId)
-  const adminProfile = admin?.profiles.find((p: any) => String(p._id) === String(req.auth!.activeProfileId))
-  const tempPassword = randomUUID().replace(/-/g, "").slice(0, 10)
-  const passwordHash = await bcrypt.hash(tempPassword, 10)
+  // Always respond 200 regardless of whether the account exists, is active,
+  // or has an email on file — a distinguishable response here (404 vs 400 vs
+  // 200) lets an attacker enumerate valid usernames/emails, unlike /login
+  // which already collapses "wrong password" and "unknown identifier" into
+  // the same 401. Only actually send an email when there's somewhere to
+  // send it; the caller can't tell the difference either way.
+  const user = await User.findOne({ $or: [{ username: identifier }, { email: identifier }] })
+  const email = (user as any)?.email as string | undefined
+  if (user && (user as any).isActive !== false && email) {
+    const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0")
+    ;(user as any).resetCodeHash = sha256(code)
+    ;(user as any).resetCodeExpiresAt = new Date(Date.now() + RESET_CODE_TTL_MS)
+    ;(user as any).resetCodeAttempts = 0
+    await user.save()
+    await sendEmail({ to: email, subject: "Your AapliSocietyy password reset code", html: resetCodeEmailHtml(code) })
+  }
+  return res.json({ ok: true })
+})
 
-  const user = await User.create({
-    username: parsed.data.username,
-    email: parsed.data.email,
-    passwordHash,
-    role: parsed.data.role ?? "Member",
-    societyId: req.auth!.societyId,
-    profiles: [{
-      societyId: req.auth!.societyId,
-      memberId: new Types.ObjectId(),
-      role: parsed.data.role ?? "Member",
-      flatNo: parsed.data.flatNo,
-      wing: parsed.data.wing ?? "",
-      societyName: adminProfile?.societyName ?? "",
-      status: "active",
-    }],
-    isActive: true,
-    mustChangePassword: true,
-  })
+authRouter.post("/reset-password", resetPasswordLimiter, async (req, res) => {
+  const parsed = resetPasswordSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+  const { identifier, code, newPassword } = parsed.data
 
-  return res.status(201).json({ username: user.username, tempPassword })
+  // Same generic-response principle as /forgot-password: unknown identifier,
+  // expired/never-requested code, and wrong code all return the identical
+  // 400 below, so none of those cases is distinguishable from the others.
+  const invalidCodeResponse = () => res.status(400).json({ error: "Code expired or invalid, request a new one" })
+
+  const user = await User.findOne({ $or: [{ username: identifier }, { email: identifier }] })
+  if (!user || (user as any).isActive === false) return invalidCodeResponse()
+
+  const resetCodeHash = (user as any).resetCodeHash as string | undefined
+  const resetCodeExpiresAt = (user as any).resetCodeExpiresAt as Date | undefined
+  const attempts = ((user as any).resetCodeAttempts as number | undefined) ?? 0
+  if (!resetCodeHash || !resetCodeExpiresAt || resetCodeExpiresAt < new Date() || attempts >= RESET_MAX_ATTEMPTS) {
+    return invalidCodeResponse()
+  }
+
+  if (sha256(code) !== resetCodeHash) {
+    ;(user as any).resetCodeAttempts = attempts + 1
+    await user.save()
+    return invalidCodeResponse()
+  }
+
+  const newHash = await bcrypt.hash(newPassword, 10)
+  ;(user as any).passwordHash = newHash
+  ;(user as any).password = newHash
+  ;(user as any).mustChangePassword = false
+  ;(user as any).resetCodeHash = undefined
+  ;(user as any).resetCodeExpiresAt = undefined
+  ;(user as any).resetCodeAttempts = 0
+  await user.save()
+
+  await RefreshToken.updateMany({ userId: user._id, revoked: false }, { revoked: true })
+  return res.json({ ok: true })
 })
 
 // Admin/Secretary looks up members in their society (e.g. to raise a bill by flat number)
@@ -185,9 +231,16 @@ async function issueTokens(user: any, profile: any) {
   const claims = {
     userId: String(user._id),
     role: profile?.role ?? user.role,
-    societyId: profile ? String(profile.societyId) : undefined,
-    memberId: profile ? String(profile.memberId) : undefined,
-    activeProfileId: profile ? String(profile._id) : undefined,
+    // Guard each field individually, not just `profile` truthiness: a
+    // Staff/Security account with no profiles[] falls back to a plain
+    // object with no _id and often no memberId. String(undefined) returns
+    // the literal string "undefined" (truthy!), which downstream routes
+    // (e.g. /auth/me's Member.findById(req.auth.memberId)) then pass to
+    // Mongoose as if it were a real ObjectId, crashing with a CastError.
+    societyId: profile?.societyId ? String(profile.societyId) : undefined,
+    memberId: profile?.memberId ? String(profile.memberId) : undefined,
+    activeProfileId: profile?._id ? String(profile._id) : undefined,
+    occupancyType: profile?.occupancyType ?? OCCUPANCY_TYPES.OWNER,
     mustChangePassword: (user as any).mustChangePassword === true || undefined,
   }
   return {

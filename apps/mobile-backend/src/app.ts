@@ -14,10 +14,16 @@ import { receiptRouter } from "./modules/receipts/receipt.controller.js"
 import { complaintRouter } from "./modules/complaints/complaint.controller.js"
 import { noticeRouter } from "./modules/notices/notice.controller.js"
 import { deviceRouter } from "./modules/devices/device.controller.js"
+import { tenantRequestRouter } from "./modules/tenantRequests/tenantRequest.controller.js"
+import { rentPaymentRouter } from "./modules/rentPayments/rentPayment.controller.js"
+import { profileEditRequestRouter } from "./modules/profileEditRequests/profileEditRequest.controller.js"
+import { tenantHistoryRouter } from "./modules/tenantHistory/tenantHistory.controller.js"
+import { notificationRouter } from "./modules/notifications/notification.controller.js"
 import { env } from "./config/env.js"
+import type { Express } from "express"
 
 // Pure Express wiring, no DB/Redis/socket/queue side effects - importable by tests on its own.
-export function createApp() {
+export function createApp(): Express {
   const app = express()
   app.use(helmet())
   app.use(cors({
@@ -43,6 +49,11 @@ export function createApp() {
   app.use("/v1/complaints", complaintRouter)
   app.use("/v1/notices", noticeRouter)
   app.use("/v1/devices", deviceRouter)
+  app.use("/v1/tenant-requests", tenantRequestRouter)
+  app.use("/v1/rent-payments", rentPaymentRouter)
+  app.use("/v1/profile-edit-requests", profileEditRequestRouter)
+  app.use("/v1/tenant-history", tenantHistoryRouter)
+  app.use("/v1/notifications", notificationRouter)
 
   app.use(errorHandler)
 

@@ -5,7 +5,7 @@ import { requireAuth } from "../../middleware/auth.js"
 import { withTenant } from "../../middleware/tenancy.js"
 import { periodLabelFrom } from "../../lib/periodLabel.js"
 
-export const receiptRouter = Router()
+export const receiptRouter: Router = Router()
 receiptRouter.use(requireAuth, withTenant)
 
 // Members see their own receipts; admins/secretaries see the whole

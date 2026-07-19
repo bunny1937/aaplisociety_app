@@ -10,8 +10,8 @@ import 'bloc/auth_bloc.dart';
 /// treatment). Keeps the real phone-or-username field + `AuthBloc` wiring;
 /// only the design's "Username or email" framing is cosmetic copy, the
 /// actual field still accepts phone-or-username per the real auth flow.
-/// "Forgot password?" has no backend handler, rendered inert like the mock
-/// (per user decision).
+/// "Forgot password?" pushes /forgot-password, backed by PasswordResetBloc
+/// (see docs/superpowers/specs/2026-07-19-mobile-forgot-password-design.md).
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
   @override
@@ -99,7 +99,10 @@ class _LoginPageState extends State<LoginPage> {
                               alignment: Alignment.centerRight,
                               child: Padding(
                                 padding: const EdgeInsets.only(top: 8),
-                                child: Text('Forgot password?', style: TextStyle(color: t.fg4, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                                child: GestureDetector(
+                                  onTap: () { Haptics.select(); context.push('/forgot-password'); },
+                                  child: Text('Forgot password?', style: TextStyle(color: t.fg4, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),

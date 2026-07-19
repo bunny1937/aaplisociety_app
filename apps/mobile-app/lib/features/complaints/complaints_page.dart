@@ -102,7 +102,11 @@ class _ComplaintsPageState extends State<ComplaintsPage> {
                 full: true,
                 loading: submitting,
                 onTap: () async {
-                  if (desc.text.trim().isEmpty) { Haptics.heavy(); return; }
+                  if (desc.text.trim().length < 30) {
+                    Haptics.heavy();
+                    setSheet(() => error = 'Please describe the issue in at least 30 characters');
+                    return;
+                  }
                   setSheet(() { submitting = true; error = null; });
                   try {
                     await sheetCtx.read<Dio>().post('/complaints', data: {
@@ -257,6 +261,7 @@ class _ComplaintsPageState extends State<ComplaintsPage> {
                 child: AsyncView<List>(
                   key: _listKey,
                   fetch: () async => (await dio.get('/complaints')).data as List,
+                  cacheKey: '/complaints',
                   isEmpty: (l) => l.isEmpty,
                   emptyBuilder: (_) => const PulseEmptyState(illo: PulseIllo.allClear, title: 'No complaints yet'),
                   builder: (context, allItems) {

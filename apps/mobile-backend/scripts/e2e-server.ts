@@ -32,7 +32,7 @@ async function main() {
     memberId,
     profiles: [{
       societyId, memberId, role: "Member",
-      flatNo: "E2E-101", wing: "E", societyName: "E2E Test Society", status: "active",
+      flatNo: "E2E-101", wing: "E", societyName: "E2E Test Society", status: "Active",
     }],
     isActive: true,
   })

@@ -22,6 +22,7 @@ class LedgerPage extends StatelessWidget {
       body: SafeArea(
         child: AsyncView<List>(
           fetch: () async => (await dio.get('/ledger')).data as List,
+          cacheKey: '/ledger',
           builder: (context, entries) {
             final balance = entries.isNotEmpty ? ((entries.first as Map)['balanceAfterTransaction'] as num? ?? 0) : 0;
 

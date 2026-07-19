@@ -124,8 +124,8 @@ class _AdminShellState extends State<AdminShell> {
                 const SizedBox(height: 14),
                 _action(context, Icons.campaign, 'Post a notice', 'Announce to the whole society', () => _postNotice(context, dio)),
                 _action(context, Icons.receipt_long, 'Generate bill', 'Raise maintenance for a member', () => _generateBill(context, dio)),
-                _action(context, Icons.person_add_alt, 'Add member', 'Onboard a flat owner or staff', () => _addMember(context, dio)),
                 _action(context, Icons.fact_check, 'Manage complaints', 'Review and resolve tickets', () { Haptics.light(); context.push('/complaints'); }),
+                _action(context, Icons.notifications_outlined, 'Notifications', 'Society-wide alerts and SOS', () { Haptics.light(); context.push('/notifications'); }),
               ],
             ),
           ),
@@ -168,14 +168,51 @@ class _AdminShellState extends State<AdminShell> {
   void _postNotice(BuildContext context, Dio dio) {
     Haptics.light();
     final title = TextEditingController();
-    final body = TextEditingController();
+    final description = TextEditingController();
+    String type = 'custom';
+    String priority = 'medium';
     _sheet(context, 'Post a notice', [
-      TextField(controller: title, decoration: const InputDecoration(hintText: 'Title')),
+      DropdownButtonFormField<String>(
+        initialValue: type,
+        items: const [
+          DropdownMenuItem(value: 'maintenance', child: Text('Maintenance')),
+          DropdownMenuItem(value: 'meeting', child: Text('Meeting')),
+          DropdownMenuItem(value: 'water', child: Text('Water')),
+          DropdownMenuItem(value: 'electricity', child: Text('Electricity')),
+          DropdownMenuItem(value: 'parking', child: Text('Parking')),
+          DropdownMenuItem(value: 'security', child: Text('Security')),
+          DropdownMenuItem(value: 'event', child: Text('Event')),
+          DropdownMenuItem(value: 'billing', child: Text('Billing')),
+          DropdownMenuItem(value: 'custom', child: Text('Custom')),
+        ],
+        onChanged: (v) => type = v ?? type,
+        decoration: const InputDecoration(labelText: 'Type'),
+      ),
       const SizedBox(height: 12),
-      TextField(controller: body, maxLines: 3, decoration: const InputDecoration(hintText: 'Message')),
+      DropdownButtonFormField<String>(
+        initialValue: priority,
+        items: const [
+          DropdownMenuItem(value: 'low', child: Text('Low')),
+          DropdownMenuItem(value: 'medium', child: Text('Medium')),
+          DropdownMenuItem(value: 'high', child: Text('High')),
+          DropdownMenuItem(value: 'urgent', child: Text('Urgent')),
+        ],
+        onChanged: (v) => priority = v ?? priority,
+        decoration: const InputDecoration(labelText: 'Priority'),
+      ),
+      const SizedBox(height: 12),
+      TextField(controller: title, decoration: const InputDecoration(hintText: 'Title (at least 10 characters)')),
+      const SizedBox(height: 12),
+      TextField(controller: description, maxLines: 3, decoration: const InputDecoration(hintText: 'Message (at least 30 characters)')),
     ], 'Publish', () async {
-      if (title.text.trim().isEmpty || body.text.trim().isEmpty) return 'Title and message are required';
-      await dio.post('/notices', data: {'title': title.text.trim(), 'body': body.text.trim()});
+      if (title.text.trim().length < 10) return 'Title must be at least 10 characters';
+      if (description.text.trim().length < 30) return 'Message must be at least 30 characters';
+      await dio.post('/notices', data: {
+        'type': type,
+        'priority': priority,
+        'title': title.text.trim(),
+        'description': description.text.trim(),
+      });
       return null;
     });
   }
@@ -205,31 +242,6 @@ class _AdminShellState extends State<AdminShell> {
         'title': 'Maintenance - $period',
         'amount': amt,
       });
-      return null;
-    });
-  }
-
-  void _addMember(BuildContext context, Dio dio) {
-    Haptics.light();
-    final username = TextEditingController();
-    final flat = TextEditingController();
-    _sheet(context, 'Add member', [
-      TextField(controller: username, decoration: const InputDecoration(hintText: 'Username (for login)')),
-      const SizedBox(height: 12),
-      TextField(controller: flat, decoration: const InputDecoration(hintText: 'Flat number')),
-    ], 'Add', () async {
-      if (username.text.trim().length < 3 || flat.text.trim().isEmpty) return 'Enter a username (3+ chars) and flat number';
-      final res = await dio.post('/auth/add-member', data: {'username': username.text.trim(), 'flatNo': flat.text.trim()});
-      if (context.mounted) {
-        await showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Member added'),
-            content: Text('Username: ${res.data['username']}\nTemporary password: ${res.data['tempPassword']}\n\nShare this with them - it won\'t be shown again.'),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
-          ),
-        );
-      }
       return null;
     });
   }

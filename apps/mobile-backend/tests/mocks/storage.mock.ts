@@ -2,11 +2,12 @@ import { vi } from "vitest"
 
 // Mock for src/services/storage.ts. Use with vi.mock in a test file, e.g.:
 //
-//   import { buildKeyMock, presignUploadMock, presignDownloadMock } from "../mocks/storage.mock.js"
+//   import { buildKeyMock, presignUploadMock, presignDownloadMock, uploadBufferMock } from "../mocks/storage.mock.js"
 //   vi.mock("../../src/services/storage.js", () => ({
 //     buildKey: buildKeyMock,
 //     presignUpload: presignUploadMock,
 //     presignDownload: presignDownloadMock,
+//     uploadBuffer: uploadBufferMock,
 //   }))
 //
 // so nothing ever calls real S3/R2.
@@ -22,3 +23,9 @@ export const presignUploadMock = vi.fn(async (
 export const presignDownloadMock = vi.fn(async (
   _key: string,
 ): Promise<string> => "https://mock-download.invalid/presigned-get")
+
+export const uploadBufferMock = vi.fn(async (
+  _key: string,
+  _body: Buffer,
+  _contentType: string,
+): Promise<void> => undefined)

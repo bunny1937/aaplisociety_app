@@ -4,7 +4,7 @@ import { DeviceToken } from "../../models/index.js"
 import { requireAuth } from "../../middleware/auth.js"
 import { withTenant } from "../../middleware/tenancy.js"
 
-export const deviceRouter = Router()
+export const deviceRouter: Router = Router()
 deviceRouter.use(requireAuth, withTenant)
 
 // Upsert by fcmToken: a device re-logging in as a different user must be

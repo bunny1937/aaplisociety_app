@@ -115,7 +115,7 @@ describe("POST /v1/visitors/:id/enter and /exit", () => {
     const res = await request(app).post(`/v1/visitors/${visitor._id}/enter`).set(authHeader(securityToken)).send({})
     expect(res.status).toBe(200)
     expect(res.body.status).toBe("Entered")
-    expect(res.body.enteredAt).toBeTruthy()
+    expect(res.body.entryTime).toBeTruthy()
   })
 
   it("security can mark exit", async () => {
@@ -127,6 +127,81 @@ describe("POST /v1/visitors/:id/enter and /exit", () => {
     const res = await request(app).post(`/v1/visitors/${visitor._id}/exit`).set(authHeader(securityToken)).send({})
     expect(res.status).toBe(200)
     expect(res.body.status).toBe("Exited")
-    expect(res.body.exitedAt).toBeTruthy()
+    expect(res.body.exitTime).toBeTruthy()
+  })
+})
+
+describe("POST /v1/visitors/sos", () => {
+  // Regression: this route was creating a Visitor with phone:"" (an empty
+  // string), which VisitorSchema's `phone: { required: true }` rejects for
+  // String paths - every real call to the member's panic button 500'd.
+  // No test previously exercised this route, so it went uncaught.
+  it("member can raise an SOS, creating a Pending visitor with entryMethod SOS", async () => {
+    const societyId = randomObjectId()
+    const memberId = randomObjectId()
+    const token = bearerToken({ role: ROLES.MEMBER, societyId: String(societyId), memberId: String(memberId) })
+
+    const res = await request(app).post("/v1/visitors/sos").set(authHeader(token)).send({ note: "Emergency" })
+    expect(res.status).toBe(201)
+    expect(res.body.status).toBe("Pending")
+    expect(res.body.entryMethod).toBe("SOS")
+    expect(res.body.memberId).toBe(String(memberId))
+  })
+})
+
+describe("PATCH /v1/visitors/:id/remind", () => {
+  it("security can remind on a still-pending visitor, bumping escalation.lastNotifiedAt", async () => {
+    const societyId = randomObjectId()
+    const memberId = randomObjectId()
+    const visitor = await Visitor.create(makeVisitor({ societyId, memberId, status: "Pending" }))
+    const securityToken = bearerToken({ role: ROLES.SECURITY, societyId: String(societyId) })
+
+    const res = await request(app).patch(`/v1/visitors/${visitor._id}/remind`).set(authHeader(securityToken)).send({})
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ success: true })
+
+    const updated = await Visitor.findById(visitor._id)
+    expect(updated!.get("escalation.lastNotifiedAt")).toBeTruthy()
+  })
+
+  it("returns 409 for a visitor that's already been decided", async () => {
+    const societyId = randomObjectId()
+    const memberId = randomObjectId()
+    const visitor = await Visitor.create(makeVisitor({ societyId, memberId, status: "Approved" }))
+    const securityToken = bearerToken({ role: ROLES.SECURITY, societyId: String(societyId) })
+
+    const res = await request(app).patch(`/v1/visitors/${visitor._id}/remind`).set(authHeader(securityToken)).send({})
+    expect(res.status).toBe(409)
+    expect(res.body).toEqual({ error: "Already Approved — nothing to remind" })
+  })
+
+  it("member cannot call remind (guard-only route)", async () => {
+    const societyId = randomObjectId()
+    const memberId = randomObjectId()
+    const visitor = await Visitor.create(makeVisitor({ societyId, memberId, status: "Pending" }))
+    const memberToken = bearerToken({ role: ROLES.MEMBER, societyId: String(societyId), memberId: String(memberId) })
+
+    const res = await request(app).patch(`/v1/visitors/${visitor._id}/remind`).set(authHeader(memberToken)).send({})
+    expect(res.status).toBe(403)
+  })
+})
+
+describe("POST /v1/visitors/guard-sos", () => {
+  it("security can raise a guard SOS, creating a Pending visitor with entryMethod SOS", async () => {
+    const societyId = randomObjectId()
+    const securityToken = bearerToken({ role: ROLES.SECURITY, societyId: String(societyId) })
+
+    const res = await request(app).post("/v1/visitors/guard-sos").set(authHeader(securityToken)).send({ note: "Suspicious person at gate" })
+    expect(res.status).toBe(201)
+    expect(res.body.status).toBe("Pending")
+    expect(res.body.entryMethod).toBe("SOS")
+    expect(res.body.name).toBe("Guard SOS")
+    expect(res.body.societyId).toBe(String(societyId))
+  })
+
+  it("member cannot raise a guard SOS (guard-only route)", async () => {
+    const token = bearerToken({ role: ROLES.MEMBER })
+    const res = await request(app).post("/v1/visitors/guard-sos").set(authHeader(token)).send({})
+    expect(res.status).toBe(403)
   })
 })

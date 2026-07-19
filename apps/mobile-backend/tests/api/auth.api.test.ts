@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import request from "supertest"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
@@ -10,9 +10,29 @@ import { randomObjectId } from "../utils/randomObjectId.js"
 import { User, RefreshToken, Member, Society } from "../../src/models/index.js"
 import { verifyAccess } from "../../src/lib/jwt.js"
 import { makeMember, makeSociety } from "../factories/index.js"
+import { sendEmailMock } from "../mocks/brevo.mock.js"
+
+// Mocked so this suite never calls real Brevo — see tests/mocks/brevo.mock.ts.
+// Factory imports the mock module dynamically (rather than referencing a
+// top-level imported binding) so it isn't affected by vi.mock's hoisting to
+// the top of the file.
+vi.mock("../../src/lib/brevo.js", async () => {
+  const mock = await import("../mocks/brevo.mock.js")
+  return {
+    sendEmail: mock.sendEmailMock,
+    resetCodeEmailHtml: (code: string) => `<p>${code}</p>`,
+  }
+})
 
 const app = createApp()
 const PASSWORD = "Passw0rd!"
+
+function codeFromLastEmail(): string {
+  const html = sendEmailMock.mock.calls.at(-1)?.[0]?.html as string
+  const match = html?.match(/(\d{6})/)
+  if (!match) throw new Error("No 6-digit code found in last sent email")
+  return match[1]
+}
 
 async function createSingleProfileUser(overrides: { isActive?: boolean } = {}) {
   const societyId = randomObjectId()
@@ -27,7 +47,7 @@ async function createSingleProfileUser(overrides: { isActive?: boolean } = {}) {
     memberId,
     profiles: [{
       societyId, memberId, role: ROLES.MEMBER,
-      flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "active",
+      flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "Active",
     }],
     isActive: overrides.isActive ?? true,
   })
@@ -88,8 +108,8 @@ describe("POST /v1/auth/login", () => {
       societyId: societyId1,
       memberId: randomObjectId(),
       profiles: [
-        { societyId: societyId1, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "active" },
-        { societyId: societyId2, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "B-202", wing: "B", societyName: "Palm Residency", status: "active" },
+        { societyId: societyId1, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "Active" },
+        { societyId: societyId2, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "B-202", wing: "B", societyName: "Palm Residency", status: "Active" },
       ],
       isActive: true,
     })
@@ -119,8 +139,8 @@ describe("POST /v1/auth/switch-profile", () => {
       societyId: societyId1,
       memberId: randomObjectId(),
       profiles: [
-        { societyId: societyId1, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "active" },
-        { societyId: societyId2, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "B-202", wing: "B", societyName: "Palm Residency", status: "active" },
+        { societyId: societyId1, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "Active" },
+        { societyId: societyId2, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "B-202", wing: "B", societyName: "Palm Residency", status: "Active" },
       ],
       isActive: true,
     })
@@ -285,8 +305,144 @@ describe("POST /v1/auth/change-password", () => {
   })
 })
 
-describe("POST /v1/auth/add-member and GET /v1/auth/members", () => {
-  async function createAdmin() {
+describe("Security guard login (no profiles[], no memberId)", () => {
+  it("logs in and GET /auth/me succeeds without a memberId/activeProfileId 'undefined'-string CastError", async () => {
+    const societyId = randomObjectId()
+    const passwordHash = await hashPassword(PASSWORD)
+    const guard = await User.create({
+      username: `guard.${Math.floor(Math.random() * 1e6)}`,
+      name: "Test Guard",
+      passwordHash,
+      role: ROLES.SECURITY,
+      societyId,
+      // Deliberately no `profiles`, no `memberId` - matches how
+      // apps/aaplisoceity_web's POST /api/admin/security-guards creates
+      // guard accounts (see auth.controller.ts's issueTokens() comment).
+      isActive: true,
+    })
+
+    const loginRes = await request(app).post("/v1/auth/login").send({ identifier: guard.username, password: PASSWORD })
+    expect(loginRes.status).toBe(200)
+    expect(loginRes.body.role).toBe(ROLES.SECURITY)
+
+    const claims = verifyAccess(loginRes.body.tokens.accessToken)
+    expect(claims.memberId).toBeUndefined()
+    expect(claims.activeProfileId).toBeUndefined()
+
+    const meRes = await request(app).get("/v1/auth/me").set(authHeader(loginRes.body.tokens.accessToken))
+    expect(meRes.status).toBe(200)
+    expect(meRes.body.user.member).toBeNull()
+  })
+})
+
+describe("POST /v1/auth/forgot-password", () => {
+  it("returns a generic 200 for an unknown identifier, without sending an email (anti-enumeration)", async () => {
+    const res = await request(app).post("/v1/auth/forgot-password").send({ identifier: "nobody.here" })
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ ok: true })
+    expect(sendEmailMock).not.toHaveBeenCalled()
+  })
+
+  it("returns the same generic 200 when the account has no email on file, without sending an email", async () => {
+    const { user } = await createSingleProfileUser()
+    await User.updateOne({ _id: user._id }, { $unset: { email: 1 } })
+    const res = await request(app).post("/v1/auth/forgot-password").send({ identifier: user.username })
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ ok: true })
+    expect(sendEmailMock).not.toHaveBeenCalled()
+  })
+
+  it("emails a 6-digit code and stores its hash on the user", async () => {
+    const { user } = await createSingleProfileUser()
+    const res = await request(app).post("/v1/auth/forgot-password").send({ identifier: user.username })
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ ok: true })
+    expect(sendEmailMock).toHaveBeenCalledWith(expect.objectContaining({ to: user.email }))
+
+    const code = codeFromLastEmail()
+    expect(code).toMatch(/^\d{6}$/)
+
+    const persisted = await User.findById(user._id)
+    expect(persisted!.get("resetCodeHash")).toEqual(expect.any(String))
+    expect(persisted!.get("resetCodeExpiresAt")).toBeInstanceOf(Date)
+    expect(persisted!.get("resetCodeAttempts")).toBe(0)
+  })
+})
+
+describe("POST /v1/auth/reset-password", () => {
+  it("returns the same generic 400 for an unknown identifier as for an invalid code (anti-enumeration)", async () => {
+    const res = await request(app).post("/v1/auth/reset-password").send({ identifier: "nobody.here", code: "123456", newPassword: "NewPassw0rd!" })
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({ error: "Code expired or invalid, request a new one" })
+  })
+
+  it("returns 400 when no code was ever requested", async () => {
+    const { user } = await createSingleProfileUser()
+    const res = await request(app).post("/v1/auth/reset-password").send({ identifier: user.username, code: "123456", newPassword: "NewPassw0rd!" })
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({ error: "Code expired or invalid, request a new one" })
+  })
+
+  it("returns the same generic 400 for a wrong code, but still increments resetCodeAttempts server-side", async () => {
+    const { user } = await createSingleProfileUser()
+    await request(app).post("/v1/auth/forgot-password").send({ identifier: user.username })
+
+    const res = await request(app).post("/v1/auth/reset-password").send({ identifier: user.username, code: "000000", newPassword: "NewPassw0rd!" })
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({ error: "Code expired or invalid, request a new one" })
+
+    const persisted = await User.findById(user._id)
+    expect(persisted!.get("resetCodeAttempts")).toBe(1)
+  })
+
+  it("returns 400 once resetCodeAttempts reaches the limit, even with the right code", async () => {
+    const { user } = await createSingleProfileUser()
+    await request(app).post("/v1/auth/forgot-password").send({ identifier: user.username })
+    const code = codeFromLastEmail()
+
+    for (let i = 0; i < 5; i++) {
+      await request(app).post("/v1/auth/reset-password").send({ identifier: user.username, code: "000000", newPassword: "NewPassw0rd!" })
+    }
+
+    const res = await request(app).post("/v1/auth/reset-password").send({ identifier: user.username, code, newPassword: "NewPassw0rd!" })
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({ error: "Code expired or invalid, request a new one" })
+  })
+
+  it("resets the password, invalidates the code, revokes refresh tokens, and the new password works", async () => {
+    const { user } = await createSingleProfileUser()
+
+    const loginRes = await request(app).post("/v1/auth/login").send({ identifier: user.username, password: PASSWORD })
+    const oldRefreshToken = loginRes.body.tokens.refreshToken as string
+    const storedRefresh = await RefreshToken.findOne({ userId: user._id })
+    expect(storedRefresh!.revoked).toBe(false)
+
+    await request(app).post("/v1/auth/forgot-password").send({ identifier: user.username })
+    const code = codeFromLastEmail()
+
+    const resetRes = await request(app).post("/v1/auth/reset-password").send({ identifier: user.username, code, newPassword: "NewPassw0rd!" })
+    expect(resetRes.status).toBe(200)
+    expect(resetRes.body).toEqual({ ok: true })
+
+    // Old password no longer works, new one does
+    const oldLogin = await request(app).post("/v1/auth/login").send({ identifier: user.username, password: PASSWORD })
+    expect(oldLogin.status).toBe(401)
+    const newLogin = await request(app).post("/v1/auth/login").send({ identifier: user.username, password: "NewPassw0rd!" })
+    expect(newLogin.status).toBe(200)
+
+    // Code is single-use
+    const replay = await request(app).post("/v1/auth/reset-password").send({ identifier: user.username, code, newPassword: "AnotherPassw0rd!" })
+    expect(replay.status).toBe(400)
+
+    // Pre-reset refresh token was revoked
+    const refreshAfterReset = await request(app).post("/v1/auth/refresh").send({ refreshToken: oldRefreshToken })
+    expect(refreshAfterReset.status).toBe(401)
+    expect(refreshAfterReset.body).toEqual({ error: "Refresh revoked" })
+  })
+})
+
+describe("GET /v1/auth/members", () => {
+  async function createAdminAndMembers(count: number) {
     const adminSocietyId = randomObjectId()
     const passwordHash = await hashPassword(PASSWORD)
     const admin = await User.create({
@@ -298,110 +454,54 @@ describe("POST /v1/auth/add-member and GET /v1/auth/members", () => {
       memberId: randomObjectId(),
       profiles: [{
         societyId: adminSocietyId, memberId: randomObjectId(), role: ROLES.ADMIN,
-        flatNo: "Office", wing: "", societyName: "Test Society", status: "active",
+        flatNo: "Office", wing: "", societyName: "Test Society", status: "Active",
       }],
       isActive: true,
     })
     const profile = admin.profiles[0] as any
-    const token = bearerToken({
+    const adminToken = bearerToken({
       userId: String(admin._id),
       role: ROLES.ADMIN,
       societyId: String(adminSocietyId),
       memberId: String(profile.memberId),
       activeProfileId: String(profile._id),
     })
-    return { admin, adminSocietyId, token }
+
+    const members = []
+    for (let i = 0; i < count; i++) {
+      const memberId = randomObjectId()
+      const username = `member.${i}.${Math.floor(Math.random() * 1e6)}`
+      const user = await User.create({
+        username,
+        email: `${username}@example.com`,
+        passwordHash,
+        role: ROLES.MEMBER,
+        societyId: adminSocietyId,
+        memberId,
+        profiles: [{
+          societyId: adminSocietyId, memberId, role: ROLES.MEMBER,
+          flatNo: `A-${i}`, wing: "A", societyName: "Test Society", status: "Active",
+        }],
+        isActive: true,
+      })
+      members.push(user)
+    }
+    return { adminToken, adminSocietyId, members }
   }
 
-  it("rejects add-member for a non-admin role with 403", async () => {
-    const token = bearerToken({ role: ROLES.MEMBER })
-    const res = await request(app).post("/v1/auth/add-member").set(authHeader(token)).send({
-      username: "new.member", flatNo: "C-303",
-    })
-    expect(res.status).toBe(403)
-    expect(res.body).toEqual({ error: "Forbidden" })
-  })
-
-  it("creates a member as Admin, returns a tempPassword that actually logs in, and rejects duplicate usernames", async () => {
-    const { token } = await createAdmin()
-    const username = `new.member.${Math.floor(Math.random() * 1e6)}`
-
-    const createRes = await request(app).post("/v1/auth/add-member").set(authHeader(token)).send({
-      username, flatNo: "C-303", role: "Member",
-    })
-    expect(createRes.status).toBe(201)
-    expect(createRes.body.username).toBe(username)
-    expect(createRes.body.tempPassword).toEqual(expect.any(String))
-    expect(createRes.body.tempPassword.length).toBeGreaterThan(0)
-
-    const loginRes = await request(app).post("/v1/auth/login").send({
-      identifier: username, password: createRes.body.tempPassword,
-    })
-    expect(loginRes.status).toBe(200)
-    expect(loginRes.body.tokens.accessToken).toEqual(expect.any(String))
-
-    const dupRes = await request(app).post("/v1/auth/add-member").set(authHeader(token)).send({
-      username, flatNo: "C-304",
-    })
-    expect(dupRes.status).toBe(409)
-    expect(dupRes.body).toEqual({ error: "Username already taken" })
-  })
-
-  it("rejects GET /auth/members for a non-admin role with 403", async () => {
+  it("rejects a non-admin role with 403", async () => {
     const token = bearerToken({ role: ROLES.SECURITY })
     const res = await request(app).get("/v1/auth/members").set(authHeader(token))
     expect(res.status).toBe(403)
     expect(res.body).toEqual({ error: "Forbidden" })
   })
 
-  it("critical: a newly added member must change their temp password before using any other route", async () => {
-    const { token: adminToken } = await createAdmin()
-    const username = `forced.${Math.floor(Math.random() * 1e6)}`
-    const createRes = await request(app).post("/v1/auth/add-member").set(authHeader(adminToken)).send({
-      username, flatNo: "D-1",
-    })
-
-    const loginRes = await request(app).post("/v1/auth/login").send({
-      identifier: username, password: createRes.body.tempPassword,
-    })
-    expect(loginRes.body.mustChangePassword).toBe(true)
-    const restrictedToken = loginRes.body.tokens.accessToken as string
-
-    const blocked = await request(app).get("/v1/notices").set(authHeader(restrictedToken))
-    expect(blocked.status).toBe(403)
-    expect(blocked.body).toEqual({ error: "Password change required" })
-
-    const meStillWorks = await request(app).get("/v1/auth/me").set(authHeader(restrictedToken))
-    expect(meStillWorks.status).toBe(200)
-
-    const changeRes = await request(app)
-      .post("/v1/auth/change-password")
-      .set(authHeader(restrictedToken))
-      .send({ currentPassword: createRes.body.tempPassword, newPassword: "NewPassw0rd!" })
-    expect(changeRes.status).toBe(200)
-
-    const reLogin = await request(app).post("/v1/auth/login").send({
-      identifier: username, password: "NewPassw0rd!",
-    })
-    expect(reLogin.body.mustChangePassword).toBeFalsy()
-
-    const unblocked = await request(app).get("/v1/notices").set(authHeader(reLogin.body.tokens.accessToken))
-    expect(unblocked.status).toBe(200)
-  })
-
   it("returns the list of members in the admin's society", async () => {
-    const { token, adminSocietyId } = await createAdmin()
-    const usernameA = `member.a.${Math.floor(Math.random() * 1e6)}`
-    const usernameB = `member.b.${Math.floor(Math.random() * 1e6)}`
-    await request(app).post("/v1/auth/add-member").set(authHeader(token)).send({ username: usernameA, flatNo: "A-1" })
-    await request(app).post("/v1/auth/add-member").set(authHeader(token)).send({ username: usernameB, flatNo: "A-2" })
-
-    const res = await request(app).get("/v1/auth/members").set(authHeader(token))
+    const { adminToken } = await createAdminAndMembers(2)
+    const res = await request(app).get("/v1/auth/members").set(authHeader(adminToken))
     expect(res.status).toBe(200)
     expect(Array.isArray(res.body)).toBe(true)
     expect(res.body).toHaveLength(2)
-    const usernames = res.body.map((m: any) => m.username).sort()
-    expect(usernames).toEqual([usernameA, usernameB].sort())
     for (const m of res.body) {
       expect(m.flatNo).toEqual(expect.any(String))
       expect(m.memberId).toEqual(expect.any(String))

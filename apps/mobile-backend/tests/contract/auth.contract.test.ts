@@ -33,7 +33,7 @@ describe("contract: POST /v1/auth/login", () => {
       memberId,
       profiles: [{
         societyId, memberId, role: ROLES.MEMBER,
-        flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "active",
+        flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "Active",
       }],
       isActive: true,
     })
@@ -58,8 +58,8 @@ describe("contract: POST /v1/auth/login", () => {
       societyId: societyId1,
       memberId: randomObjectId(),
       profiles: [
-        { societyId: societyId1, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "active" },
-        { societyId: societyId2, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "B-202", wing: "B", societyName: "Palm Residency", status: "active" },
+        { societyId: societyId1, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "Active" },
+        { societyId: societyId2, memberId: randomObjectId(), role: ROLES.MEMBER, flatNo: "B-202", wing: "B", societyName: "Palm Residency", status: "Active" },
       ],
       isActive: true,
     })
@@ -87,7 +87,7 @@ describe("contract: GET /v1/auth/me", () => {
       memberId,
       profiles: [{
         societyId, memberId, role: ROLES.MEMBER,
-        flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "active",
+        flatNo: "A-101", wing: "A", societyName: "Sunrise CHS", status: "Active",
       }],
       isActive: true,
     })

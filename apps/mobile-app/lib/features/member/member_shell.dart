@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/haptics.dart';
+import '../auth/bloc/auth_bloc.dart';
 import 'pulse/pulse_tokens.dart';
 import 'dashboard_page.dart';
 import 'bills_page.dart';
@@ -39,20 +40,20 @@ class _MemberShellState extends State<MemberShell> {
   int _i = 0;
   int _pendingVisitors = 0;
 
-  final _pages = const [
-    DashboardPage(),
-    BillsPage(),
-    NoticesPage(),
-    VisitorsPage(),
-    MemberProfilePage(),
-  ];
-  final _items = const [
-    _NavItem(Icons.home_outlined, Icons.home_rounded, 'Home'),
-    _NavItem(Icons.description_outlined, Icons.description_rounded, 'Bills'),
-    _NavItem(Icons.campaign_outlined, Icons.campaign_rounded, 'Notices'),
-    _NavItem(Icons.person_add_alt_outlined, Icons.person_add_alt_1_rounded, 'Visitors'),
-    _NavItem(Icons.account_circle_outlined, Icons.account_circle_rounded, 'Profile'),
-  ];
+  List<Widget> _pages(bool isTenant) => [
+        const DashboardPage(),
+        if (!isTenant) const BillsPage(),
+        const NoticesPage(),
+        const VisitorsPage(),
+        const MemberProfilePage(),
+      ];
+  List<_NavItem> _items(bool isTenant) => [
+        const _NavItem(Icons.home_outlined, Icons.home_rounded, 'Home'),
+        if (!isTenant) const _NavItem(Icons.description_outlined, Icons.description_rounded, 'Bills'),
+        const _NavItem(Icons.campaign_outlined, Icons.campaign_rounded, 'Notices'),
+        const _NavItem(Icons.person_add_alt_outlined, Icons.person_add_alt_1_rounded, 'Visitors'),
+        const _NavItem(Icons.account_circle_outlined, Icons.account_circle_rounded, 'Profile'),
+      ];
 
   @override
   void initState() {
@@ -85,12 +86,17 @@ class _MemberShellState extends State<MemberShell> {
   @override
   Widget build(BuildContext context) {
     final t = context.pulse;
+    final authState = context.watch<AuthBloc>().state;
+    final isTenant = authState is AuthAuthed && authState.claims['occupancyType'] == 'Tenant';
+    final pages = _pages(isTenant);
+    final items = _items(isTenant);
+    if (_i >= pages.length) _i = 0;
     return Scaffold(
       backgroundColor: t.canvas,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),
         transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
-        child: KeyedSubtree(key: ValueKey(_i), child: _pages[_i]),
+        child: KeyedSubtree(key: ValueKey(_i), child: pages[_i]),
       ),
       bottomNavigationBar: ClipRect(
         child: BackdropFilter(
@@ -102,10 +108,10 @@ class _MemberShellState extends State<MemberShell> {
               border: Border(top: BorderSide(color: t.hairline)),
             ),
             child: Row(
-              children: List.generate(_items.length, (i) {
+              children: List.generate(items.length, (i) {
                 final active = i == _i;
-                final item = _items[i];
-                final showBadge = i == 3 && _pendingVisitors > 0;
+                final item = items[i];
+                final showBadge = item.label == 'Visitors' && _pendingVisitors > 0;
                 return Expanded(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,

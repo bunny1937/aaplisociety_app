@@ -28,3 +28,12 @@ export async function presignDownload(key: string): Promise<string> {
     Bucket: env.r2.bucket, Key: key,
   }), { expiresIn: 600 })
 }
+
+// Server-side upload for small, backend-proxied files (tenant-request
+// documents) where strict size/type validation matters more than saving
+// backend bandwidth — see design spec section on upload approach.
+export async function uploadBuffer(key: string, body: Buffer, contentType: string): Promise<void> {
+  await s3.send(new PutObjectCommand({
+    Bucket: env.r2.bucket, Key: key, Body: body, ContentType: contentType,
+  }))
+}

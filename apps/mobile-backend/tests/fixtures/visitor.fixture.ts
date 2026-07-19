@@ -7,5 +7,5 @@ export const sampleVisitor = {
   phone: "9999999999",
   purpose: "Delivery",
   status: "Pending",
-  escalationLevel: 1,
+  entryMethod: "Manual",
 }

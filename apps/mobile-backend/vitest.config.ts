@@ -22,6 +22,8 @@ export default defineConfig({
       JWT_SECRET: "test-jwt-secret",
       REFRESH_SECRET: "test-refresh-secret",
       REDIS_URL: "redis://localhost:6379/0",
+      BREVO_API_KEY: "test-brevo-api-key",
+      BREVO_SENDER_EMAIL: "test@example.com",
     },
     reporters: ["default", "junit"],
     outputFile: {

@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/theme/haptics.dart';
+import '../../core/network/api_error.dart';
 import '../auth/bloc/auth_bloc.dart';
 import 'pulse/member_display.dart';
 import 'pulse/pulse.dart';
 
 /// Profile tab — port of ui_kits/member-v2 `ScreensVisitorsProfile.jsx`
-/// `ProfileScreen`: gradient header, stacked info sections, danger sign-out.
-/// Per user decision, sections the design wants (family members, parking
-/// slots, emergency contact, carpet/built-up area, ownership type) that
-/// don't exist on the backend yet render "Not available yet" rather than
-/// being hidden — ready to light up once those fields ship (see
-/// MEMBER_V2_GAPS.md). The old page's navigation tiles (Change password /
-/// My complaints / dark-mode toggle) are folded in below the design's info
-/// blocks so those destinations stay reachable; "Visitor history" tile is
+/// `ProfileScreen`: gradient header + a tile list. Each info section (Flat
+/// details, Contact, Parking, Family members, Emergency contact) now lives on
+/// its own page under `profile/`, reached via tiles below, instead of being
+/// stacked inline — see docs/superpowers/specs/2026-07-19-profile-restructure-design.md.
+/// Contact/Family members/Emergency contact are editable there by the flat's
+/// owner, but only via an approval-pending request — see that page's Edit flow.
+/// The old page's navigation tiles (Change password / My complaints /
+/// dark-mode toggle) are folded in below unchanged; "Visitor history" tile is
 /// dropped because that history now lives directly on the Visitors tab.
 class MemberProfilePage extends StatelessWidget {
   const MemberProfilePage({super.key});
@@ -39,15 +41,10 @@ class MemberProfilePage extends StatelessWidget {
     final societyName = resolveSocietyName(user, activeProfile);
     final role = claims['role']?.toString() ?? activeProfile?['role']?.toString();
     final status = activeProfile?['status']?.toString();
-    final carpetArea = member?['carpetAreaSqft'];
-    final builtUpArea = member?['builtUpAreaSqft'];
-    final areaText = carpetArea != null
-        ? '$carpetArea sqft (carpet)${builtUpArea != null ? ' · $builtUpArea sqft (built-up)' : ''}'
-        : null;
-    final votingRights = member?['hasVotingRights'];
-    final votingText = votingRights == null ? null : (votingRights == true ? 'Eligible' : 'Not eligible');
+    final occupancyType = claims['occupancyType']?.toString();
     final parkingSlots = (member?['parkingSlots'] as List?)?.cast<Map>() ?? const <Map>[];
     final familyMembers = (member?['familyMembers'] as List?)?.cast<Map>() ?? const <Map>[];
+    final canEdit = occupancyType != 'Tenant';
 
     return SafeArea(
       child: ListView(
@@ -55,34 +52,58 @@ class MemberProfilePage extends StatelessWidget {
         children: [
           _Header(username: displayName, wing: wing, flatNo: flatNo, societyName: societyName, role: role, status: status),
           const SizedBox(height: 20),
-          _Section(
+          _Tile(
             icon: Icons.home_work_outlined,
-            title: 'Flat details',
-            rows: [
-              ('Flat', flatNo != null ? '$flatNo${wing != null && wing.isNotEmpty ? ' ($wing wing)' : ''}' : null),
-              ('Type', member?['flatType']?.toString()),
-              ('Ownership', member?['ownershipType']?.toString()),
-              ('Carpet area', areaText),
-              ('Voting rights', votingText),
-            ],
+            label: 'Flat details',
+            onTap: () {
+              Haptics.light();
+              context.push('/profile/flat-details', extra: {'member': member, 'flatNo': flatNo, 'wing': wing});
+            },
           ),
-          _Section(
+          _Tile(
             icon: Icons.call_outlined,
-            title: 'Contact',
-            rows: [
-              ('Email', email),
-              ('Phone', (member?['contactNumber'] ?? user['phone'])?.toString()),
-              ('WhatsApp', member?['whatsappNumber']?.toString()),
-            ],
+            label: 'Contact',
+            onTap: () {
+              Haptics.light();
+              context.push('/profile/contact', extra: {'member': member, 'email': email, 'canEdit': canEdit});
+            },
           ),
-          _ParkingSection(slots: parkingSlots),
-          _FamilySection(members: familyMembers),
-          const _Section(icon: Icons.emergency_outlined, title: 'Emergency contact', rows: [('Contact', null)]),
+          _Tile(
+            icon: Icons.local_parking_outlined,
+            label: 'Parking',
+            onTap: () {
+              Haptics.light();
+              context.push('/profile/parking', extra: {'slots': parkingSlots});
+            },
+          ),
+          _Tile(
+            icon: Icons.family_restroom_outlined,
+            label: 'Family members',
+            onTap: () {
+              Haptics.light();
+              context.push('/profile/family-members', extra: {'members': familyMembers, 'canEdit': canEdit});
+            },
+          ),
+          _Tile(
+            icon: Icons.emergency_outlined,
+            label: 'Emergency contact',
+            onTap: () {
+              Haptics.light();
+              context.push('/profile/emergency-contact', extra: {'member': member, 'canEdit': canEdit});
+            },
+          ),
           const SizedBox(height: 8),
           Text('More', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: t.fg1)),
           const SizedBox(height: 10),
+          const _SosTile(),
+          _Tile(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () { Haptics.light(); context.push('/notifications'); }),
           _Tile(icon: Icons.lock_outline_rounded, label: 'Change password', onTap: () { Haptics.light(); context.push('/change-password'); }),
           _Tile(icon: Icons.report_problem_outlined, label: 'My complaints', onTap: () { Haptics.light(); context.push('/complaints'); }),
+          if (occupancyType != 'Tenant')
+            _Tile(icon: Icons.key_outlined, label: 'Add Tenant', onTap: () { Haptics.light(); context.push('/add-tenant'); }),
+          _Tile(icon: Icons.receipt_outlined, label: 'Rent Payments', onTap: () { Haptics.light(); context.push('/rent-payments'); }),
+          if (occupancyType != 'Tenant')
+            _Tile(icon: Icons.history_outlined, label: 'Tenant History', onTap: () { Haptics.light(); context.push('/tenant-history'); }),
           ValueListenableBuilder<ThemeMode>(
             valueListenable: themeModeNotifier,
             builder: (_, mode, __) => Container(
@@ -168,45 +189,70 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _Section extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final List<(String, String?)> rows;
-  const _Section({required this.icon, required this.title, required this.rows});
+/// Raises POST /visitors/sos — a panic alert to security + admin (see
+/// mobile-backend's visitor.controller.ts and queues/index.ts's
+/// NOTIFICATION_TYPES.VISITOR_SOS handling). Confirms first since this is a
+/// real emergency dispatch, not a reversible action.
+class _SosTile extends StatefulWidget {
+  const _SosTile();
+  @override
+  State<_SosTile> createState() => _SosTileState();
+}
+
+class _SosTileState extends State<_SosTile> {
+  bool _sending = false;
+
+  Future<void> _raise(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Raise SOS alert?'),
+        content: const Text('This immediately notifies security and society admins of an emergency at your flat.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Raise SOS', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    setState(() => _sending = true);
+    Haptics.heavy();
+    try {
+      final dio = context.read<Dio>();
+      await dio.post('/visitors/sos');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('SOS alert sent to security and admin'), backgroundColor: Colors.red),
+      );
+    } on DioException catch (err) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(err))));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final t = context.pulse;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: PulseCard(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.red.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(PulseTokens.radiusSm),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(PulseTokens.radiusSm),
+          onTap: _sending ? null : () => _raise(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
               children: [
-                Icon(icon, size: 16, color: t.brand),
-                const SizedBox(width: 8),
-                Text(title, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: t.fg2)),
+                const Icon(Icons.sos_rounded, color: Colors.red, size: 20),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Raise SOS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: Colors.red))),
+                if (_sending) const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
               ],
             ),
-            const SizedBox(height: 10),
-            ...rows.map((r) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Row(
-                    children: [
-                      SizedBox(width: 100, child: Text(r.$1, style: TextStyle(fontSize: 12.5, color: t.fg4))),
-                      Expanded(
-                        child: Text(
-                          r.$2 ?? 'Not available yet',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: r.$2 != null ? t.fg1 : t.fg5, fontStyle: r.$2 != null ? FontStyle.normal : FontStyle.italic),
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
-          ],
+          ),
         ),
       ),
     );
@@ -240,103 +286,3 @@ class _Tile extends StatelessWidget {
   }
 }
 
-class _ParkingSection extends StatelessWidget {
-  final List<Map> slots;
-  const _ParkingSection({required this.slots});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.pulse;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: PulseCard(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.local_parking_outlined, size: 16, color: t.brand),
-                const SizedBox(width: 8),
-                Text('Parking', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: t.fg2)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (slots.isEmpty)
-              Text('Not available yet', style: TextStyle(fontSize: 12.5, color: t.fg5, fontStyle: FontStyle.italic))
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: slots.map((s) {
-                  final label = '${s['slotNumber'] ?? '—'}';
-                  final sub = [s['type'], s['vehicleType']]
-                      .where((v) => v != null && '$v'.isNotEmpty)
-                      .join(' · ');
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(color: t.brandSoft, borderRadius: BorderRadius.circular(PulseTokens.radiusSm)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: t.brand)),
-                        if (sub.isNotEmpty) Text(sub, style: TextStyle(fontSize: 10.5, color: t.fg4)),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FamilySection extends StatelessWidget {
-  final List<Map> members;
-  const _FamilySection({required this.members});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.pulse;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: PulseCard(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.family_restroom_outlined, size: 16, color: t.brand),
-                const SizedBox(width: 8),
-                Text('Family members', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: t.fg2)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (members.isEmpty)
-              Text('Not available yet', style: TextStyle(fontSize: 12.5, color: t.fg5, fontStyle: FontStyle.italic))
-            else
-              ...members.map((m) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text('${m['name'] ?? '—'}', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: t.fg1)),
-                        ),
-                        Text(
-                          [m['relation'], m['age'] != null ? '${m['age']} yrs' : null]
-                              .where((v) => v != null && '$v'.isNotEmpty)
-                              .join(' · '),
-                          style: TextStyle(fontSize: 11.5, color: t.fg4),
-                        ),
-                      ],
-                    ),
-                  )),
-          ],
-        ),
-      ),
-    );
-  }
-}

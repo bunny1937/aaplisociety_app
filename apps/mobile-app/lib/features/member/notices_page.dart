@@ -7,6 +7,86 @@ import '../../core/widgets/async_view.dart';
 import 'pulse/pulse.dart';
 import 'pulse/notice_emoji.dart';
 
+/// Quick-glance overlay for the dashboard's top-right notice bell — shows
+/// notices as a dismissible sheet over whatever the member was looking at,
+/// instead of switching the bottom-nav to the Notices tab. Switching tabs
+/// there meant pressing back from the bell landed nowhere to pop to (an
+/// IndexedStack tab switch never pushes a route), so back closed the app
+/// instead of returning to Home. The dedicated Notices tab (reached via the
+/// bottom nav itself) is unaffected — this is only for the bell shortcut.
+Future<void> showNoticesSheet(BuildContext context, Dio dio) {
+  return showPulseSheet<void>(
+    context,
+    title: 'Notices',
+    full: true,
+    builder: (context) => _NoticesSheetBody(dio: dio),
+  );
+}
+
+class _NoticesSheetBody extends StatefulWidget {
+  final Dio dio;
+  const _NoticesSheetBody({required this.dio});
+  @override
+  State<_NoticesSheetBody> createState() => _NoticesSheetBodyState();
+}
+
+class _NoticesSheetBodyState extends State<_NoticesSheetBody> {
+  late final Future<List> _future = widget.dio.get('/notices').then((r) => r.data as List);
+  final _acknowledged = <String>{};
+
+  bool _isUrgent(Map n) => n['priority'] == 'urgent' || n['priority'] == 'high';
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.pulse;
+    return FutureBuilder<List>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final notices = snapshot.data!;
+        if (notices.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: PulseEmptyState(illo: PulseIllo.emptyInbox, title: 'No notices yet'),
+          );
+        }
+        final urgent = notices.where((n) => _isUrgent(n as Map)).toList();
+        final rest = notices.where((n) => !_isUrgent(n as Map)).toList();
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (urgent.isNotEmpty) ...[
+                Text('🚨 Urgent', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: t.danger)),
+                const SizedBox(height: 8),
+                ...urgent.map((n) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: NoticeCard(
+                        notice: n as Map,
+                        urgent: true,
+                        acknowledged: _acknowledged.contains('${n['_id']}'),
+                        onAcknowledge: () { Haptics.success(); setState(() => _acknowledged.add('${n['_id']}')); },
+                      ),
+                    )),
+                const SizedBox(height: 8),
+              ],
+              ...rest.map((n) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: NoticeCard(notice: n as Map, urgent: false, acknowledged: false, onAcknowledge: null),
+                  )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// Notices tab — port of ui_kits/member-v2 `ScreensNoticesComplaints.jsx`
 /// `NoticesScreen`: urgent-first section, acknowledge flow, segmented type
 /// filter. Design uses a fixed 5-type filter; kept the current app's
@@ -52,6 +132,7 @@ class _NoticesPageState extends State<NoticesPage> {
       child: AsyncView<List>(
         key: _listKey,
         fetch: () async => (await dio.get('/notices')).data as List,
+        cacheKey: '/notices',
         builder: (context, allNotices) {
           final tags = <String>{'All'};
           for (final n in allNotices) { tags.add(_tagOf(n as Map)); }
@@ -91,7 +172,7 @@ class _NoticesPageState extends State<NoticesPage> {
                   sliver: SliverList.separated(
                     itemCount: urgent.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _NoticeCard(
+                    itemBuilder: (_, i) => NoticeCard(
                       notice: urgent[i] as Map,
                       urgent: true,
                       acknowledged: _acknowledged.contains('${(urgent[i] as Map)['_id']}'),
@@ -105,7 +186,7 @@ class _NoticesPageState extends State<NoticesPage> {
                 sliver: SliverList.separated(
                   itemCount: rest.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) => _NoticeCard(notice: rest[i] as Map, urgent: false, acknowledged: false, onAcknowledge: null),
+                  itemBuilder: (_, i) => NoticeCard(notice: rest[i] as Map, urgent: false, acknowledged: false, onAcknowledge: null),
                 ),
               ),
             ],
@@ -116,12 +197,12 @@ class _NoticesPageState extends State<NoticesPage> {
   }
 }
 
-class _NoticeCard extends StatelessWidget {
+class NoticeCard extends StatelessWidget {
   final Map notice;
   final bool urgent;
   final bool acknowledged;
   final VoidCallback? onAcknowledge;
-  const _NoticeCard({required this.notice, required this.urgent, required this.acknowledged, required this.onAcknowledge});
+  const NoticeCard({super.key, required this.notice, required this.urgent, required this.acknowledged, required this.onAcknowledge});
 
   @override
   Widget build(BuildContext context) {
@@ -148,7 +229,7 @@ class _NoticeCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text('${notice['title'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: t.fg1)),
           const SizedBox(height: 4),
-          Text('${notice['body'] ?? ''}', style: TextStyle(fontSize: 12.5, color: t.fg3, height: 1.45)),
+          Text('${notice['description'] ?? notice['body'] ?? ''}', style: TextStyle(fontSize: 12.5, color: t.fg3, height: 1.45)),
           const SizedBox(height: 8),
           Text(
             '— ${notice['createdByName'] ?? 'Society'}${createdAt != null ? ' · ${createdAt.day}/${createdAt.month}/${createdAt.year}' : ''}'

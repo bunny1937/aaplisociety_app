@@ -4,7 +4,7 @@ import { Transaction } from "../../models/index.js"
 import { requireAuth } from "../../middleware/auth.js"
 import { withTenant } from "../../middleware/tenancy.js"
 
-export const ledgerRouter = Router()
+export const ledgerRouter: Router = Router()
 ledgerRouter.use(requireAuth, withTenant)
 
 // Members see their own transaction history; admins/secretaries see the

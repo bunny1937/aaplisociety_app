@@ -8,6 +8,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/logging/app_logger.dart';
 import 'core/network/dio_client.dart';
 import 'core/storage/token_store.dart';
+import 'core/storage/offline_cache.dart';
+import 'core/storage/offline_outbox.dart';
 import 'core/push/push_service.dart';
 import 'core/socket/socket_service.dart';
 import 'core/socket/socket_bus.dart';
@@ -23,6 +25,13 @@ Future<void> main() async {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     AppConfig.current = AppConfig.resolve(); // pass --dart-define=FLAVOR=dev|staging|prod
+
+    try {
+      await OfflineCache.init();
+      await OfflineOutbox.init();
+    } catch (e, st) {
+      AppLogger.error('Offline storage init failed', error: e, stackTrace: st);
+    }
 
     FlutterError.onError = (details) {
       AppLogger.error(details.exceptionAsString(), error: details.exception, stackTrace: details.stack);
@@ -60,15 +69,34 @@ class AapliApp extends StatelessWidget {
             if (state is AuthAuthed) {
               final token = await tokens.access;
               if (token == null) return;
-              SocketService.instance.connect(token, (event, data) {
-                SocketBus.route(event, data);
-                if (event == 'VISITOR_SOS') {
-                  scaffoldMessengerKey.currentState?.showSnackBar(
-                    const SnackBar(content: Text('SOS alert from the gate'), backgroundColor: Colors.red),
-                  );
-                }
-              });
+              SocketService.instance.connect(
+                token,
+                (event, data) {
+                  SocketBus.route(event, data);
+                  if (event == 'VISITOR_SOS') {
+                    scaffoldMessengerKey.currentState?.showSnackBar(
+                      const SnackBar(content: Text('SOS alert from the gate'), backgroundColor: Colors.red),
+                    );
+                  }
+                },
+                onReconnect: () {
+                  // Events that fired while disconnected aren't replayed by the
+                  // server, so force every listening screen to refetch once the
+                  // socket comes back rather than showing stale data silently.
+                  SocketBus.visitorEvents.value++;
+                  SocketBus.billEvents.value++;
+                  SocketBus.noticeEvents.value++;
+                  SocketBus.notificationEvents.value++;
+                  OfflineOutbox.sync(dio);
+                },
+              );
+              // Also flush any queued guard offline-entries on login/app start,
+              // not only on socket reconnect (the socket may already be up
+              // before this listener attaches, e.g. after an app relaunch
+              // with a saved session).
+              await OfflineOutbox.sync(dio);
               await PushService.instance.registerForUser(dio);
+              await PushService.instance.listenNotificationTaps(router);
               await PushService.instance.listenForegroundMessages((message) {
                 final ctx = scaffoldMessengerKey.currentContext;
                 final text = message.notification?.title ?? message.notification?.body;

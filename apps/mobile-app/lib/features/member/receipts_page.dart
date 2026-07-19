@@ -25,6 +25,7 @@ class ReceiptsPage extends StatelessWidget {
       body: SafeArea(
         child: AsyncView<List>(
           fetch: () async => (await dio.get('/receipts')).data as List,
+          cacheKey: '/receipts',
           builder: (context, receipts) {
             return CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
