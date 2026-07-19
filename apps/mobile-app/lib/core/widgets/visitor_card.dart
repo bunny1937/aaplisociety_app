@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_colors.dart';
-import '../theme/theme_x.dart';
+import '../../features/member/pulse/pulse.dart';
 
-/// Shared visitor entry row — used by Visitor History today; Security shell
-/// (ui-audit-plan.md roadmap step 8) is the planned second consumer, so this
-/// is built as a Shared Component directly rather than a screen-local one.
+/// Guard-facing visitor row, shared by the Security feature's Gate and Log
+/// tabs. Restyled onto the Pulse token system (was AppColors/GoogleFonts) —
+/// this widget has no other consumers (verified via grep), so retheming it
+/// carries no risk to Member screens.
 class LedgerVisitorCard extends StatelessWidget {
   final String name;
   final String subtitle;
   final String? status;
   final Color? statusColor;
+  final Color? tint;
   final Widget? actions;
   final int index;
   const LedgerVisitorCard({
@@ -20,41 +20,40 @@ class LedgerVisitorCard extends StatelessWidget {
     required this.subtitle,
     this.status,
     this.statusColor,
+    this.tint,
     this.actions,
     this.index = 0,
   });
 
   @override
   Widget build(BuildContext context) {
+    final t = context.pulse;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: context.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.brass.withValues(alpha: context.isDark ? 0.18 : 0.12), width: 1),
+        color: tint ?? t.surface,
+        borderRadius: BorderRadius.circular(PulseTokens.radius),
+        border: Border.all(color: t.border, width: 1),
+        boxShadow: t.shadowCard,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 21,
-                backgroundColor: AppColors.brass.withValues(alpha: 0.14),
-                child: const Icon(Icons.person_rounded, color: AppColors.brass),
-              ),
+              PulseAvatar(name: name, size: 42),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 14.5, color: context.headline)),
-                    Text(subtitle, style: GoogleFonts.manrope(fontSize: 12.5, color: AppColors.inkMuted)),
+                    Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: t.fg1)),
+                    Text(subtitle, style: TextStyle(fontSize: 12.5, color: t.fg3)),
                   ],
                 ),
               ),
               if (status != null && status!.isNotEmpty)
-                Text(status!, style: GoogleFonts.manrope(fontSize: 12.5, color: statusColor ?? AppColors.inkMuted, fontWeight: FontWeight.w700)),
+                Text(status!, style: TextStyle(fontSize: 12.5, color: statusColor ?? t.fg3, fontWeight: FontWeight.w700)),
             ],
           ),
           if (actions != null) ...[
