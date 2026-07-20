@@ -30,26 +30,32 @@ class OfflineOutbox {
   /// name/phone/purpose/vehicleNumber/note/clientRef/queuedAt (i.e. the exact
   /// body a live POST would have sent) — callers generate the clientRef
   /// up front via [generateClientRef] so the same id is used whether the
-  /// live attempt or the queued retry is what eventually lands.
-  static void enqueue(Map<String, dynamic> payload) {
+  /// live attempt or the queued retry is what eventually lands. `endpoint`
+  /// records which route this payload was meant for (New Entry's guard-flow
+  /// submits to a different endpoint than a plain walk-in log), stored
+  /// alongside the payload so [sync] replays each entry to the right place
+  /// instead of assuming every queued entry is an offline-entry.
+  static void enqueue(Map<String, dynamic> payload, {String endpoint = '/visitors/offline-entry'}) {
     final clientRef = payload['clientRef'] as String;
-    _box?.put(clientRef, payload);
+    _box?.put(clientRef, {...payload, '_endpoint': endpoint});
   }
 
   static List<Map> pending() => (_box?.values ?? const []).cast<Map>().toList();
 
   static int get pendingCount => _box?.length ?? 0;
 
-  /// Attempts to POST every queued entry; each success is removed from the
-  /// box. A per-entry failure (still offline, or a genuine 4xx) leaves that
-  /// entry queued for the next sync attempt rather than aborting the batch.
+  /// Attempts to POST every queued entry to its recorded endpoint; each
+  /// success is removed from the box. A per-entry failure (still offline, or
+  /// a genuine 4xx) leaves that entry queued for the next sync attempt
+  /// rather than aborting the batch.
   static Future<int> sync(Dio dio) async {
     if (_box == null) return 0;
     var synced = 0;
     for (final key in _box!.keys.toList()) {
-      final entry = Map<String, dynamic>.from(_box!.get(key) as Map);
+      final raw = Map<String, dynamic>.from(_box!.get(key) as Map);
+      final endpoint = raw.remove('_endpoint') as String? ?? '/visitors/offline-entry';
       try {
-        await dio.post('/visitors/offline-entry', data: entry);
+        await dio.post(endpoint, data: raw);
         await _box!.delete(key);
         synced++;
       } on DioException catch (err) {

@@ -9,14 +9,17 @@ import 'pulse/pulse.dart';
 import 'pulse/visitor_pass_card.dart';
 
 /// Visitors tab — port of ui_kits/member-v2 `ScreensVisitorsProfile.jsx`
-/// `VisitorsScreen`: 3-tier layout (at-the-gate-now / all-clear / today's
-/// log), merged from the previous `visitors_page.dart` (pre-register form)
-/// + `visitor_history_page.dart` (approve/deny history). Design's screen is
-/// reactive/gate-triggered only with no pre-register form — per user
-/// decision, the real pre-register feature is kept, moved into a "+" FAB
-/// sheet instead of the old inline composer. The design's "offline confirm"
-/// tier has no backing field on the real Visitor model (see
-/// MEMBER_V2_GAPS.md) so it's omitted rather than faked.
+/// `VisitorsScreen`: at-the-gate-now (approve/deny) / your gate passes /
+/// today's log. The FAB only generates gate passes now — the old
+/// member-initiated "walk-in guest" pre-register (POST /visitors, decided
+/// via `_decide` above) was removed per user feedback: a walk-in shows up
+/// unannounced, so the *guard* should be the one raising that request, not
+/// the member pre-filing it for someone who hasn't arrived yet. The
+/// approve/deny section above is left in place for whatever creates a
+/// Pending visitor next (a future guard-side flow, or the web admin/security
+/// portal against the same DB). The design's "offline confirm" tier has no
+/// backing field on the real Visitor model (see MEMBER_V2_GAPS.md) so it's
+/// omitted rather than faked.
 class VisitorsPage extends StatefulWidget {
   const VisitorsPage({super.key});
   @override
@@ -24,7 +27,7 @@ class VisitorsPage extends StatefulWidget {
 }
 
 class _VisitorsPageState extends State<VisitorsPage> {
-  final _listKey = GlobalKey<AsyncViewState<List>>();
+  final _listKey = GlobalKey<AsyncViewState<Map>>();
 
   @override
   void initState() {
@@ -60,17 +63,23 @@ class _VisitorsPageState extends State<VisitorsPage> {
       bottom: false,
       child: Stack(
         children: [
-          AsyncView<List>(
+          AsyncView<Map>(
             key: _listKey,
-            fetch: () async => (await dio.get('/visitors')).data as List,
+            fetch: () async {
+              final results = await Future.wait([dio.get('/visitors'), dio.get('/visitors/passes')]);
+              return {'visitors': results[0].data as List, 'passes': results[1].data as List};
+            },
             cacheKey: '/visitors',
-            builder: (context, all) {
+            builder: (context, data) {
+              final all = data['visitors'] as List;
+              final passes = data['passes'] as List;
               final pending = all.where((v) => (v as Map)['status'] == 'Pending').toList();
               final today = all.where((v) {
                 final d = DateTime.tryParse('${(v as Map)['createdAt']}');
                 final now = DateTime.now();
                 return d != null && d.year == now.year && d.month == now.month && d.day == now.day;
               }).toList();
+              final activePasses = passes.where((p) => (p as Map)['effectiveStatus'] == 'Active').toList();
 
               return CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -93,6 +102,22 @@ class _VisitorsPageState extends State<VisitorsPage> {
                         itemBuilder: (_, i) => _GateCard(visitor: pending[i] as Map, onDecide: (d) => _decide(context, '${(pending[i] as Map)['_id']}', d)),
                       ),
                     ),
+                  if (activePasses.isNotEmpty) ...[
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      sliver: SliverToBoxAdapter(
+                        child: Text('Your gate passes', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: t.fg1)),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                      sliver: SliverList.separated(
+                        itemCount: activePasses.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (_, i) => _PassRow(pass: activePasses[i] as Map),
+                      ),
+                    ),
+                  ],
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                     sliver: SliverToBoxAdapter(
@@ -118,49 +143,12 @@ class _VisitorsPageState extends State<VisitorsPage> {
             right: 20, bottom: 20,
             child: FloatingActionButton(
               backgroundColor: t.brand,
-              onPressed: () => _openFabChooser(context),
-              child: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white),
+              onPressed: () => _openGeneratePass(context),
+              child: const Icon(Icons.qr_code_2_rounded, color: Colors.white),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _openFabChooser(BuildContext context) async {
-    Haptics.select();
-    await showPulseSheet<void>(
-      context,
-      title: 'Add a visitor',
-      builder: (sheetCtx) {
-        final t = sheetCtx.pulse;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ChooserOption(
-              icon: Icons.qr_code_2_rounded,
-              title: 'Generate a gate pass',
-              subtitle: 'For an expected visitor — get a code to share in advance. The guard admits them directly, no approval needed at the gate.',
-              color: t.brand,
-              onTap: () {
-                Navigator.of(sheetCtx).pop();
-                _openGeneratePass(context);
-              },
-            ),
-            const SizedBox(height: 12),
-            _ChooserOption(
-              icon: Icons.person_add_alt_1_rounded,
-              title: 'Register a walk-in guest',
-              subtitle: "For someone arriving now — sends a request you'll need to approve or deny when they reach the gate.",
-              color: t.warning,
-              onTap: () {
-                Navigator.of(sheetCtx).pop();
-                _openPreRegister(context);
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -245,6 +233,7 @@ class _VisitorsPageState extends State<VisitorsPage> {
                     });
                     Haptics.success();
                     if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
+                    _reload();
                     if (context.mounted) {
                       await showVisitorPassCard(
                         context,
@@ -259,72 +248,6 @@ class _VisitorsPageState extends State<VisitorsPage> {
                     Haptics.heavy();
                     setSheet(() => submitting = false);
                     if (sheetCtx.mounted) showPulseToast(sheetCtx, apiErrorMessage(err, 'Could not generate pass'), kind: PulseToastKind.error);
-                  }
-                },
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _openPreRegister(BuildContext context) async {
-    final name = TextEditingController();
-    final phone = TextEditingController();
-    var type = 'Guest';
-    var submitting = false;
-
-    await showPulseSheet(
-      context,
-      title: 'Register a walk-in guest',
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) {
-          final t = sheetCtx.pulse;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('This sends a request the guard will hold at the gate until you approve or deny it — for a visitor who\'s already arrived without a pass.', style: TextStyle(fontSize: 11.5, color: t.fg4, height: 1.4)),
-              const SizedBox(height: 16),
-              _labeled(t, 'Visitor name', TextField(controller: name, style: TextStyle(color: t.fg1), decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), prefixIcon: Icon(Icons.person_outline_rounded)))),
-              const SizedBox(height: 12),
-              _labeled(t, 'Phone number', TextField(controller: phone, keyboardType: TextInputType.phone, maxLength: 10, style: TextStyle(color: t.fg1), decoration: const InputDecoration(border: InputBorder.none, counterText: '', contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), prefixIcon: Icon(Icons.phone_outlined)))),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: ['Guest', 'Delivery', 'Cab', 'Service'].map((ty) {
-                  final sel = ty == type;
-                  return GestureDetector(
-                    onTap: () => setSheet(() => type = ty),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(color: sel ? t.brandSoft : t.surface, border: Border.all(color: sel ? t.brand : t.border), borderRadius: BorderRadius.circular(999)),
-                      child: Text(ty, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: sel ? t.brand : t.fg3)),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 18),
-              PulseButton(
-                label: 'Send for approval',
-                icon: Icons.person_add_alt_1_rounded,
-                full: true,
-                loading: submitting,
-                onTap: () async {
-                  final n = name.text.trim(), p = phone.text.trim();
-                  if (n.length < 2) { Haptics.heavy(); showPulseToast(sheetCtx, "Enter the visitor's name", kind: PulseToastKind.error); return; }
-                  if (!RegExp(r'^[0-9]{10}$').hasMatch(p)) { Haptics.heavy(); showPulseToast(sheetCtx, 'Enter a valid 10-digit phone number', kind: PulseToastKind.error); return; }
-                  setSheet(() => submitting = true);
-                  try {
-                    await sheetCtx.read<Dio>().post('/visitors', data: {'name': n, 'phone': p, 'purpose': type});
-                    Haptics.success();
-                    if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-                    _reload();
-                    if (context.mounted) showPulseToast(context, 'Sent — waiting for your approval when they arrive', kind: PulseToastKind.success);
-                  } on DioException catch (err) {
-                    Haptics.heavy();
-                    setSheet(() => submitting = false);
-                    if (sheetCtx.mounted) showPulseToast(sheetCtx, apiErrorMessage(err, 'Could not register visitor'), kind: PulseToastKind.error);
                   }
                 },
               ),
@@ -397,48 +320,6 @@ class _GateCard extends StatelessWidget {
   }
 }
 
-class _ChooserOption extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-  const _ChooserOption({required this.icon, required this.title, required this.subtitle, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.pulse;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: t.surface, border: Border.all(color: t.border), borderRadius: BorderRadius.circular(PulseTokens.radius)),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: t.fg1)),
-                  const SizedBox(height: 3),
-                  Text(subtitle, style: TextStyle(fontSize: 11.5, color: t.fg4, height: 1.4)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _TodayRow extends StatelessWidget {
   final Map visitor;
   const _TodayRow({required this.visitor});
@@ -465,6 +346,58 @@ class _TodayRow extends StatelessWidget {
             ),
           ),
           PulsePill(label: status, tone: tone, small: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _PassRow extends StatelessWidget {
+  final Map pass;
+  const _PassRow({required this.pass});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.pulse;
+    final expiresAt = DateTime.tryParse('${pass['expiresAt']}');
+    final generatedAt = DateTime.tryParse('${pass['createdAt']}') ?? DateTime.now();
+    final expiresLabel = expiresAt != null
+        ? 'Valid until ${expiresAt.day}/${expiresAt.month} · ${expiresAt.hour.toString().padLeft(2, '0')}:${expiresAt.minute.toString().padLeft(2, '0')}'
+        : '';
+
+    return PulseCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${pass['visitorName'] ?? 'Visitor'}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: t.fg1)),
+                Text(expiresLabel, style: TextStyle(fontSize: 11.5, color: t.fg4)),
+              ],
+            ),
+          ),
+          const PulsePill(label: 'Active', tone: PulseTone.entered, small: true),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () {
+              Haptics.select();
+              showVisitorPassCard(
+                context,
+                visitorName: '${pass['visitorName'] ?? ''}',
+                visitorPhone: '${pass['visitorPhone'] ?? ''}',
+                otp: '${pass['otp'] ?? ''}',
+                generatedAt: generatedAt,
+                expiresAt: expiresAt ?? generatedAt,
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: t.brandSoft, borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.qr_code_2_rounded, color: t.brand, size: 18),
+            ),
+          ),
         ],
       ),
     );

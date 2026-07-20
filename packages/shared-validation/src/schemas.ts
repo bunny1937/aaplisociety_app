@@ -55,9 +55,12 @@ export const passCreateSchema = z.object({
   maxUses: z.number().int().min(0).optional(),
 })
 
+// phone is optional here (unlike visitorCreateSchema's required phone) — the
+// guard app's walk-in log surfaces phone as an optional field (a guard often
+// doesn't have the visitor's number), so a blank submission must not 400.
 export const offlineEntrySchema = z.object({
   name: z.string().min(2),
-  phone: z.string().regex(/^[0-9]{10}$/),
+  phone: z.string().regex(/^[0-9]{10}$/).optional().or(z.literal("")),
   purpose: z.enum(VISITOR_PURPOSES),
   vehicleNumber: z.string().optional(),
   queuedAt: z.string().datetime(),
@@ -67,6 +70,22 @@ export const offlineEntrySchema = z.object({
 
 export const visitorDecisionSchema = z.object({
   decision: z.enum(["approve", "deny"]),
+})
+
+// Guard picks a specific flat/resident and logs an expected visitor on their
+// behalf — creates a Pending visitor the same way a member's own POST /
+// does, so it rides the existing change-stream -> notification/escalation
+// pipeline (queues/index.ts) with no separate notify code path. Idempotent
+// on clientRef like offlineEntrySchema, for the same offline-retry reason.
+export const guardRequestSchema = z.object({
+  memberId: z.string().min(1),
+  name: z.string().min(2),
+  phone: z.string().regex(/^[0-9]{10}$/).optional().or(z.literal("")),
+  purpose: z.enum(VISITOR_PURPOSES),
+  vehicleNumber: z.string().optional(),
+  note: z.string().max(500).optional(),
+  queuedAt: z.string().datetime(),
+  clientRef: z.string().min(1),
 })
 
 export const paymentSchema = z.object({

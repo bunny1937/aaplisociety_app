@@ -153,7 +153,7 @@ class _BillFormatBody extends StatelessWidget {
                 icon: Icons.download_outlined,
                 variant: PulseBtnVariant.secondary,
                 onTap: () async {
-                  final bytes = await renderBillPdf(bill);
+                  final bytes = await renderBillPdf(bill, societyName: societyName);
                   await Printing.layoutPdf(onLayout: (_) async => bytes, name: '${billTitle(bill)}.pdf');
                 },
               ),
@@ -164,7 +164,7 @@ class _BillFormatBody extends StatelessWidget {
                 label: 'Share',
                 icon: Icons.ios_share_rounded,
                 onTap: () async {
-                  final bytes = await renderBillPdf(bill);
+                  final bytes = await renderBillPdf(bill, societyName: societyName);
                   await Printing.sharePdf(bytes: bytes, filename: '${billTitle(bill)}.pdf');
                 },
               ),

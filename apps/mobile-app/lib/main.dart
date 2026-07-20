@@ -72,6 +72,7 @@ class AapliApp extends StatelessWidget {
               SocketService.instance.connect(
                 token,
                 (event, data) {
+                  debugPrint('[socket] $event -> $data');
                   SocketBus.route(event, data);
                   if (event == 'VISITOR_SOS') {
                     scaffoldMessengerKey.currentState?.showSnackBar(

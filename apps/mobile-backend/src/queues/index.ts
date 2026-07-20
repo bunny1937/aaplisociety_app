@@ -4,7 +4,7 @@ import { Notification, Visitor, TenantRequest, User } from "../models/index.js"
 import { VISITOR_STATUS, NOTIFICATION_TYPES, room } from "@aapli/constants"
 import { nextEscalation } from "@aapli/business"
 import { io } from "../realtime/socket.js"
-import { sendFcmToUser } from "../services/fcm.js"
+import { sendFcmToMember, sendFcmToSociety } from "../services/fcm.js"
 import { logger } from "../lib/logger.js"
 
 const connection = redis as any
@@ -25,6 +25,7 @@ export const tenancyQueue = new Queue("tenancy", { connection, defaultJobOptions
 
 // Processes domain events -> persists Notification -> emits socket + FCM
 export const notificationsWorker = new Worker("notifications", async (job) => {
+  logger.info({ jobName: job.name, data: job.data }, "[queue] processing notification job")
   if (job.name === "bill-change") return handleBillChange(job.data)
   if (job.name === "notice-change") return handleNoticeChange(job.data)
   if (job.name === "complaint-change") return handleComplaintChange(job.data)
@@ -55,7 +56,7 @@ async function handleVisitorChange(data: any) {
 
   if (memberId) {
     io.to(room.member(memberId)).emit(type, notif)
-    await sendFcmToUser(memberId, { title: notif.title!, body: notif.message! }, { type, visitorId })
+    await sendFcmToMember(memberId, { title: notif.title!, body: notif.message! }, { type, visitorId })
   }
   // Guard-facing gate log/pending queue needs the same live updates (new request, member's approve/deny, entry/exit)
   io.to(room.security(societyId)).emit(type, notif)
@@ -90,7 +91,7 @@ async function handleBillChange(data: any) {
   })
   if (memberId) {
     io.to(room.member(memberId)).emit(NOTIFICATION_TYPES.BILL_GENERATED, notif)
-    await sendFcmToUser(memberId, { title: notif.title!, body: notif.message! }, { type: NOTIFICATION_TYPES.BILL_GENERATED, billId })
+    await sendFcmToMember(memberId, { title: notif.title!, body: notif.message! }, { type: NOTIFICATION_TYPES.BILL_GENERATED, billId })
   }
 }
 
@@ -111,7 +112,7 @@ async function handlePaymentChange(data: any) {
   })
   if (memberId) {
     io.to(room.member(memberId)).emit(NOTIFICATION_TYPES.PAYMENT_RECEIVED, notif)
-    await sendFcmToUser(memberId, { title: notif.title!, body: notif.message! }, { type: NOTIFICATION_TYPES.PAYMENT_RECEIVED, transactionId })
+    await sendFcmToMember(memberId, { title: notif.title!, body: notif.message! }, { type: NOTIFICATION_TYPES.PAYMENT_RECEIVED, transactionId })
   }
 }
 
@@ -129,7 +130,7 @@ async function handleComplaintChange(data: any) {
   })
   if (memberId) {
     io.to(room.member(memberId)).emit(type, notif)
-    await sendFcmToUser(memberId, { title: notif.title!, body: notif.message! }, { type, complaintId })
+    await sendFcmToMember(memberId, { title: notif.title!, body: notif.message! }, { type, complaintId })
   }
 }
 
@@ -142,6 +143,7 @@ async function handleNoticeChange(data: any) {
     metadata: { noticeId },
   })
   io.to(room.society(societyId)).emit(NOTIFICATION_TYPES.NOTICE_POSTED, notif)
+  await sendFcmToSociety(societyId, { title: notif.title!, body: notif.message! }, { type: NOTIFICATION_TYPES.NOTICE_POSTED, noticeId })
 }
 
 // Escalation worker walks the approved ladder until approved/expired
@@ -157,7 +159,7 @@ export const escalationWorker = new Worker("escalation", async (job) => {
     $push: { "escalation.history": { level: step.level, channel: step.channels[0] ?? "push", at: new Date(), ok: true } },
   })
   if (v.memberId) {
-    await sendFcmToUser(String(v.memberId),
+    await sendFcmToMember(String(v.memberId),
       { title: "Visitor waiting", body: `Escalation level ${step.level}` },
       { type: NOTIFICATION_TYPES.VISITOR_ESCALATION, visitorId })
   }

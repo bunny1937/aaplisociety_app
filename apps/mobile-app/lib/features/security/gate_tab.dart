@@ -266,17 +266,43 @@ class _GateTabState extends State<GateTab> {
                 tint: expired ? t.dangerSoft : (warning ? t.warningSoft : null),
                 status: expired ? 'Expired' : (warning ? '⚠ ${waitMins}m' : 'Pending'),
                 statusColor: expired ? t.danger : (warning ? t.warning : t.fg3),
-                actions: Row(
+                actions: Column(
                   children: [
-                    Expanded(child: PulseButton(label: 'Remind', size: PulseBtnSize.sm, onTap: () => _remind(dio, id))),
-                    if (phone.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      PulseIconButton(icon: Icons.call_rounded, onTap: () => _call(phone)),
-                    ],
-                    const SizedBox(width: 8),
-                    PulseIconButton(
-                      icon: hasPhoto ? Icons.photo_rounded : Icons.camera_alt_outlined,
-                      onTap: () => _attachPhoto(dio, id),
+                    Row(
+                      children: [
+                        Expanded(child: PulseButton(label: 'Remind', size: PulseBtnSize.sm, onTap: () => _remind(dio, id))),
+                        if (phone.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          PulseIconButton(icon: Icons.call_rounded, onTap: () => _call(phone)),
+                        ],
+                        const SizedBox(width: 8),
+                        PulseIconButton(
+                          icon: hasPhoto ? Icons.photo_rounded : Icons.camera_alt_outlined,
+                          onTap: () => _attachPhoto(dio, id),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PulseButton(
+                            label: 'Allow in',
+                            size: PulseBtnSize.sm,
+                            variant: PulseBtnVariant.success,
+                            onTap: () => _act(dio, id, 'enter'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: PulseButton(
+                            label: 'Deny',
+                            size: PulseBtnSize.sm,
+                            variant: PulseBtnVariant.danger,
+                            onTap: () => _act(dio, id, 'deny'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

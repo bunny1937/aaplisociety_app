@@ -65,7 +65,7 @@ const VisitorSchema = new Schema({
   },
   purposeNote: String,
   status: { type: String, default: "Pending", index: true },
-  entryMethod: { type: String, enum: ["Manual", "Pass", "SOS", "OfflineEntry"], default: "Manual" },
+  entryMethod: { type: String, enum: ["Manual", "Pass", "SOS", "OfflineEntry", "GuardRequest"], default: "Manual" },
   offlineMeta: {
     wasOffline: { type: Boolean, default: false },
     queuedAt: Date,
@@ -260,8 +260,11 @@ const RentPaymentSchema = new Schema({
 }, { timestamps: true })
 
 // Mirrors the real `visitorpasses` collection — see web's models/VisitorPass.js.
-// Credentials are hashed at rest; raw OTP/QR token is only ever returned once,
-// at creation, to the caller.
+// The OTP is also kept in plain `otp` (in addition to the verify-time
+// `otpHash`) so the member can re-view/re-share their own pass from the app
+// at any point before it expires, not just once at creation time — a
+// deliberate relaxation of the original "hash-only, never re-derivable"
+// design to support that.
 const VisitorPassSchema = new Schema({
   societyId: { type: ObjectId, ref: "Society", required: true, index: true },
   memberId: { type: ObjectId, ref: "Member", required: true, index: true },
@@ -279,15 +282,21 @@ const VisitorPassSchema = new Schema({
     endTime: { type: String, default: "23:59" },
   },
   validFrom: { type: Date, required: true },
-  expiresAt: { type: Date, required: true, index: true },
+  expiresAt: { type: Date, required: true },
   maxUses: { type: Number, default: 1 },
   usedAt: [{ type: Date }],
+  otp: { type: String, required: true },
   otpHash: { type: String, required: true, index: true },
   qrTokenHash: { type: String, index: true },
   status: { type: String, enum: ["Active", "Used", "Expired", "Revoked"], default: "Active", index: true },
   revokedBy: { type: ObjectId, ref: "User" },
   revokedAt: Date,
 }, { timestamps: true, strict: false })
+
+// Auto-deletes a pass 3 days after it expires — "expired" passes shouldn't
+// linger forever; MongoDB's TTL monitor sweeps roughly every 60s, so this is
+// "~3 days after expiresAt", not to-the-second.
+VisitorPassSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 3 * 24 * 60 * 60 })
 
 // Mirrors the real `blacklists` collection — see web's models/Blacklist.js.
 const BlacklistSchema = new Schema({

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
 import 'package:printing/printing.dart';
+import '../../auth/bloc/auth_bloc.dart';
 import '../bills_page.dart' show inr, effectiveStatus, billTitle;
 import 'pulse.dart';
 import 'bill_format_sheet.dart';
 import 'bill_pdf.dart';
+import 'member_display.dart';
 import 'payment_sheet.dart';
 
 /// Port of Primitives.jsx `BillDetailSheet` (member-v2 `ScreensBills.jsx`):
@@ -85,6 +87,9 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
   Widget build(BuildContext context) {
     final t = context.pulse;
     final bill = widget.bill;
+    final auth = context.watch<AuthBloc>().state;
+    final user = auth is AuthAuthed ? auth.user : const <String, dynamic>{};
+    final societyName = resolveSocietyName(user, null);
     final status = effectiveStatus(bill);
     final amount = (bill['amount'] as num?) ?? 0;
     final paidAmt = (bill['amountPaid'] as num?) ?? 0;
@@ -216,7 +221,7 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
                 icon: Icons.download_outlined,
                 variant: PulseBtnVariant.ghost,
                 onTap: () async {
-                  final bytes = await renderBillPdf(bill);
+                  final bytes = await renderBillPdf(bill, societyName: societyName);
                   await Printing.layoutPdf(onLayout: (_) async => bytes, name: '${billTitle(bill)}.pdf');
                 },
               ),
@@ -228,7 +233,7 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
                 icon: Icons.ios_share_rounded,
                 variant: PulseBtnVariant.ghost,
                 onTap: () async {
-                  final bytes = await renderBillPdf(bill);
+                  final bytes = await renderBillPdf(bill, societyName: societyName);
                   await Printing.sharePdf(bytes: bytes, filename: '${billTitle(bill)}.pdf');
                 },
               ),

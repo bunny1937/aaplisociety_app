@@ -4,10 +4,10 @@ import multer from "multer"
 import crypto from "node:crypto"
 import {
   visitorCreateSchema, visitorDecisionSchema, passCreateSchema, passVerifySchema,
-  sosSchema, offlineEntrySchema,
+  sosSchema, offlineEntrySchema, guardRequestSchema,
 } from "@aapli/validation"
 import { VISITOR_STATUS, ROLES, VISITOR_ACCESS_ROLES } from "@aapli/constants"
-import { Visitor, VisitorPass, Blacklist } from "../../models/index.js"
+import { Visitor, VisitorPass, Blacklist, Member } from "../../models/index.js"
 import { requireAuth, requireRoles } from "../../middleware/auth.js"
 import { requireVisitorAccess } from "../../middleware/auth.js"
 import { withTenant } from "../../middleware/tenancy.js"
@@ -130,6 +130,45 @@ visitorRouter.post("/:id/exit", requireVisitorAccess, async (req, res) => {
   return res.json(v)
 })
 
+// Guard denies a visitor that's still awaiting (or already has) resident
+// approval — the resident-only path is POST /:id/decision; this is the
+// guard's own override for when they're physically at the gate and the
+// resident hasn't responded. Restricted to Pending/Approved (mirrors
+// /:id/decision's own status filter) so an already Entered/Exited record
+// can't be retroactively marked denied.
+visitorRouter.post("/:id/deny", requireVisitorAccess, async (req, res) => {
+  const v = await Visitor.findOneAndUpdate(
+    { _id: req.params.id, societyId: (req as any).societyId, status: { $in: [VISITOR_STATUS.PENDING, VISITOR_STATUS.APPROVED] } },
+    { status: VISITOR_STATUS.REJECTED, approvedBy: req.auth!.userId, approvedAt: new Date(), approverRole: req.auth!.role },
+    { new: true },
+  )
+  if (!v) return res.status(404).json({ error: "Not found or already decided" })
+  return res.json(v) // change stream -> notification -> member
+})
+
+// Guard searches the society's flats/residents to attach a new visitor
+// request to a specific member — backs the New Entry screen's "Select
+// flat" field. Read-only, no PII beyond what a guard already sees on
+// every visitor record (name/flat/phone).
+visitorRouter.get("/flats/search", requireVisitorAccess, async (req, res) => {
+  const q = String(req.query.q ?? "").trim()
+  if (q.length < 1) return res.json([])
+  const pattern = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const regex = new RegExp(pattern, "i")
+  const members = await Member.find({
+    societyId: (req as any).societyId,
+    isActive: true,
+    $or: [{ flatNo: regex }, { wing: regex }, { ownerName: regex }],
+  }).select("flatNo wing ownerName contactNumber").limit(20).lean()
+  return res.json(members.map((m: any) => ({
+    memberId: String(m._id),
+    flatNo: m.flatNo ?? "",
+    wing: m.wing ?? "",
+    ownerName: m.ownerName ?? "",
+    contactNumber: m.contactNumber ?? "",
+  })))
+})
+
 // Guard pings the resident again about a still-pending request. Deliberately
 // just touches the document rather than duplicating notification logic: the
 // change stream in events/changestreams.ts picks up this update the same
@@ -222,13 +261,36 @@ visitorRouter.post("/pass", requireRoles(ROLES.MEMBER), async (req, res) => {
     validFrom: new Date(parsed.data.validFrom),
     expiresAt: new Date(parsed.data.expiresAt),
     maxUses: parsed.data.maxUses ?? 1,
+    otp,
     otpHash: sha256(otp),
     qrTokenHash: sha256(qrToken),
     status: "Active",
   })
 
-  // Raw credentials are returned exactly once — never persisted or re-derivable.
+  // qrToken alone stays one-time-only (never persisted in plain form); the
+  // OTP is kept in plain form on `pass` so the member can pull it up again
+  // later from GET /visitors/passes.
   return res.status(201).json({ pass, otp, qrToken })
+})
+
+// Member views their own gate passes — kept visible until they expire (and
+// for a few days after, until the TTL index on VisitorPass.expiresAt sweeps
+// them). Includes the plain `otp` so the member can re-share it any time.
+visitorRouter.get("/passes", requireRoles(ROLES.MEMBER), async (req, res) => {
+  const passes = await VisitorPass.find({ societyId: (req as any).societyId, memberId: req.auth!.memberId })
+    .sort({ createdAt: -1 })
+    .limit(100)
+    .lean()
+
+  const now = new Date()
+  const withStatus = passes.map((p: any) => ({
+    ...p,
+    qrTokenHash: undefined,
+    otpHash: undefined,
+    effectiveStatus: p.status !== "Active" ? p.status : now > p.expiresAt ? "Expired" : "Active",
+  }))
+
+  return res.json(withStatus)
 })
 
 // Guard verifies an OTP or QR token at the gate; on success, auto-enters the visitor.
@@ -287,7 +349,7 @@ visitorRouter.post("/offline-entry", requireVisitorAccess, async (req, res) => {
   const existing = await Visitor.findOne({ societyId: (req as any).societyId, "offlineMeta.clientRef": parsed.data.clientRef })
   if (existing) return res.status(200).json(existing) // already synced — idempotent replay
 
-  const watchlist = await checkBlacklist((req as any).societyId, parsed.data.phone)
+  const watchlist = await checkBlacklist((req as any).societyId, parsed.data.phone ?? "")
   if (watchlist.severity === "block") return res.status(403).json({ error: `Entry blocked: ${watchlist.blacklistReason}` })
 
   const now = new Date()
@@ -313,6 +375,52 @@ visitorRouter.post("/offline-entry", requireVisitorAccess, async (req, res) => {
     },
   })
   return res.status(201).json(visitor)
+})
+
+// --- Guard-initiated visitor request (guard picked a flat, awaits resident approval) ---
+
+// Same idempotent-on-clientRef shape as /offline-entry, but creates a
+// Pending visitor tied to a chosen memberId instead of an already-Entered
+// one — this is what powers New Entry's "notify the resident" behavior.
+// Deliberately status: PENDING + isNew (via Visitor.create, an insert) so
+// events/changestreams.ts's watchVisitors -> handleVisitorChange
+// (queues/index.ts) picks it up exactly like a member's own POST / does:
+// push notification to the resident, socket emit to security, and the
+// escalation ladder arms itself automatically. No separate notify code here.
+visitorRouter.post("/guard-request", requireVisitorAccess, async (req, res) => {
+  const parsed = guardRequestSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+
+  const existing = await Visitor.findOne({ societyId: (req as any).societyId, "offlineMeta.clientRef": parsed.data.clientRef })
+  if (existing) return res.status(200).json(existing) // already synced — idempotent replay
+
+  const member = await Member.findOne({ _id: parsed.data.memberId, societyId: (req as any).societyId }).lean()
+  if (!member) return res.status(404).json({ error: "Flat/resident not found" })
+
+  const watchlist = await checkBlacklist((req as any).societyId, parsed.data.phone ?? "")
+  if (watchlist.severity === "block") return res.status(403).json({ error: `Entry blocked: ${watchlist.blacklistReason}` })
+
+  const visitor = await Visitor.create({
+    societyId: (req as any).societyId,
+    memberId: parsed.data.memberId,
+    name: parsed.data.name,
+    phone: parsed.data.phone,
+    purpose: parsed.data.purpose,
+    vehicleNumber: parsed.data.vehicleNumber,
+    status: VISITOR_STATUS.PENDING,
+    entryMethod: "GuardRequest",
+    isBlacklisted: watchlist.isBlacklisted,
+    blacklistReason: watchlist.blacklistReason,
+    offlineMeta: {
+      wasOffline: false,
+      queuedAt: new Date(parsed.data.queuedAt),
+      syncedAt: new Date(),
+      note: parsed.data.note ?? "",
+      clientRef: parsed.data.clientRef,
+      confirmation: { status: "Pending" },
+    },
+  })
+  return res.status(201).json(visitor) // change stream -> notification + escalation -> member, security
 })
 
 // --- Visitor photo upload (guard captures a photo at the gate) ---
