@@ -1,4 +1,8 @@
-import rateLimit, { ipKeyGenerator } from "express-rate-limit"
+// Named import, not default: express-rate-limit's default-export interop is
+// the same kind of cross-platform-inconsistent resolution that bit helmet
+// above (see app.ts) — the named export sidesteps it and is what the
+// package's own docs recommend for TS consumers.
+import { rateLimit, ipKeyGenerator } from "express-rate-limit"
 
 // Only failed attempts (401/400/etc) count against the limit - a legitimate
 // user logging in repeatedly never gets locked out, only credential-stuffing
