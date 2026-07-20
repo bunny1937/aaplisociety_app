@@ -1,6 +1,6 @@
 import "express-async-errors"
 import express from "express"
-import helmet from "helmet"
+import { createRequire } from "node:module"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import { pinoHttp } from "pino-http"
@@ -21,6 +21,14 @@ import { tenantHistoryRouter } from "./modules/tenantHistory/tenantHistory.contr
 import { notificationRouter } from "./modules/notifications/notification.controller.js"
 import { env } from "./config/env.js"
 import type { Express } from "express"
+
+// helmet's package.json exports map has no "types" condition, so under
+// moduleResolution:NodeNext a static `import helmet from "helmet"` resolves
+// its .d.cts inconsistently across platforms (clean on Windows/pnpm, fails
+// on Vercel's Linux build with "not callable"). require() sidesteps that
+// static resolution entirely.
+const require = createRequire(import.meta.url)
+const helmet = require("helmet") as () => express.RequestHandler
 
 // Pure Express wiring, no DB/Redis/socket/queue side effects - importable by tests on its own.
 export function createApp(): Express {
