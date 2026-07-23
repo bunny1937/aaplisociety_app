@@ -1,224 +1,45 @@
-# ==========================================
-# OS Generated
-# ==========================================
-.DS_Store
-Thumbs.db
-Desktop.ini
-
-# ==========================================
-# Environment / Secrets
-# ==========================================
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.crt
-docs/superpowers
-# ==========================================
-# Node.js
-# ==========================================
-node_modules/
-**/node_modules/
-
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# Build output
-dist/
-**/dist/
-build/
-**/build/
-out/
-
-# TypeScript cache
-*.tsbuildinfo
-**/*.tsbuildinfo
-
-# ==========================================
-# Coverage / Reports
-# ==========================================
-coverage/
-**/coverage/
-
-reports/
-**/reports/
-
-.nyc_output/
-test-results/
-
-# ==========================================
-# Turbo Repo
-# ==========================================
-.turbo/
-**/.turbo/
-
-turbo-cache/
-
-# ==========================================
-# IDEs
-# ==========================================
-.idea/
-**/.idea/
-
-.vscode/
-*.iml
-
-# ==========================================
-# GitHub / AI Tools
-# ==========================================
-.github/copilot/
-.agents/
-.claude/
-.superpowers/
-.ui-craft/
-
-# ==========================================
-# Documentation Generated
-# ==========================================
-docs/**/build/
-
-# ==========================================
-# Backend Runtime
-# ==========================================
-logs/
-**/logs/
-
+# Miscellaneous
+*.class
 *.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
 
-pids/
-*.pid
-*.seed
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
 
-# ==========================================
-# Mongo / Database Dumps
-# ==========================================
-mongo_export/
-**/mongo_export/
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
 
-*.bson
-*.json.gz
-
-# ==========================================
-# Redis Local Data
-# ==========================================
-dump.rdb
-appendonly.aof
-
-# ==========================================
-# Flutter
-# ==========================================
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
 .dart_tool/
-**/.dart_tool/
-
-.flutter-plugins
 .flutter-plugins-dependencies
-.packages
-
 .pub-cache/
 .pub/
+/build/
+/coverage/
 
-# Keep pubspec.lock for applications
-# (removed ignore for pubspec.lock)
+# Symbolication related
+app.*.symbols
 
-# Flutter generated
-**/.flutter-plugins
-**/.flutter-plugins-dependencies
+# Obfuscation related
+app.*.map.json
 
-# Flutter builds
-**/build/
-
-# ==========================================
-# Android
-# ==========================================
-.gradle/
-**/.gradle/
-
-.kotlin/
-**/.kotlin/
-
-local.properties
-**/local.properties
-
-# Android generated
-**/android/app/build/
-**/android/build/
-
-# ==========================================
-# iOS / macOS
-# ==========================================
-Pods/
-**/Pods/
-
-.symlinks/
-**/.symlinks/
-
-**/Flutter/ephemeral/
-**/Flutter/Generated.xcconfig
-**/Flutter/flutter_export_environment.sh
-
-*.xcuserstate
-xcuserdata/
-
-DerivedData/
-
-*.xcworkspace/xcuserdata/
-
-# ==========================================
-# Flutter Desktop Generated
-# ==========================================
-**/linux/flutter/ephemeral/
-**/macos/Flutter/ephemeral/
-**/windows/flutter/ephemeral/
-
-# ==========================================
-# Testing
-# ==========================================
-.playwright/
-.nyc_output/
-
-# ==========================================
-# Temporary Files
-# ==========================================
-*.tmp
-*.temp
-*.cache
-*.swp
-*.swo
-*.bak
-
-# ==========================================
-# Local Assets / Tools
-# ==========================================
-.zassets/
-zassets/
-
-.infrastructure-local/
-
-# ==========================================
-# Deployment
-# ==========================================
-.vercel/
-.railway/
-
-# ==========================================
-# Local Exports
-# ==========================================
-*.zip
-*.tar
-*.tar.gz
-
-# Local exports / debug files
-REPO_CONTENT.txt
-folder-structure.txt
-files-to-commit.txt
-*.vsix
-localhost*.png
-
-# Backend local env
-apps/mobile-backend/env
-.env.example
-.vercel
-.env*
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release

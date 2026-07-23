@@ -1,0 +1,106 @@
+import 'dart:math';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../../main.dart' show scaffoldMessengerKey;
+import '../socket/socket_bus.dart';
+
+/// Guard-app offline entry queue: when POST /visitors/offline-entry fails
+/// (no connectivity), the entry is persisted here instead of lost, keyed by
+/// a client-generated `clientRef` the server dedupes on (see mobile-backend's
+/// Visitor.offlineMeta.clientRef unique partial index) — so a retried sync
+/// after a flaky connection never double-logs the same physical entry.
+class OfflineOutbox {
+  static const _boxName = 'offline_outbox_v1';
+  static Box? _box;
+  static final _rand = Random.secure();
+  static Future<void> init() async {
+    _box = await Hive.openBox(_boxName);
+  }
+
+  static bool get isReady => _box != null;
+  // Device-scoped unique id: timestamp + random suffix. Doesn't need to be a
+  // formal UUID — the server only requires it be unique per society, which a
+  // 128-bit-entropy string plus a monotonic timestamp guarantees in practice.
+  static String generateClientRef() {
+    final rand =
+        List.generate(16, (_) => _rand.nextInt(16).toRadixString(16)).join();
+    return '${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}-$rand';
+  }
+
+  /// Queues an entry for later sync. `payload` must already contain
+  /// name/phone/purpose/vehicleNumber/note/clientRef/queuedAt (i.e. the exact
+  /// body a live POST would have sent) — callers generate the clientRef
+  /// up front via [generateClientRef] so the same id is used whether the
+  /// live attempt or the queued retry is what eventually lands. `endpoint`
+  /// records which route this payload was meant for (New Entry's guard-flow
+  /// submits to a different endpoint than a plain walk-in log), stored
+  /// alongside the payload so [sync] replays each entry to the right place
+  /// instead of assuming every queued entry is an offline-entry.
+  static void enqueue(Map<String, dynamic> payload,
+      {String endpoint = '/visitors/offline-entry'}) {
+    final clientRef = payload['clientRef'] as String;
+    _box?.put(clientRef, {...payload, '_endpoint': endpoint});
+  }
+
+  static List<Map> pending() => (_box?.values ?? const []).cast<Map>().toList();
+  static int get pendingCount => _box?.length ?? 0;
+  static Future<void> clear() async {
+    await _box?.clear();
+  }
+
+  /// Attempts to POST every queued entry to its recorded endpoint; each
+  /// success is removed from the box. A per-entry failure (still offline, or
+  /// a genuine 4xx) leaves that entry queued for the next sync attempt
+  /// rather than aborting the batch.
+  static Future<int> sync(Dio dio) async {
+    if (_box == null) return 0;
+    var synced = 0;
+    for (final key in _box!.keys.toList()) {
+      final raw = Map<String, dynamic>.from(_box!.get(key) as Map);
+      final endpoint =
+          raw.remove('_endpoint') as String? ?? '/visitors/offline-entry';
+      try {
+        await dio.post(endpoint, data: raw);
+        await _box!.delete(key);
+        synced++;
+      } on DioException catch (err) {
+        // 4xx other than a connectivity failure means this entry is bad
+        // (e.g. failed validation) — drop it rather than retry forever.
+        final status = err.response?.statusCode;
+        if (status != null &&
+            status >= 400 &&
+            status < 500 &&
+            status != 408 &&
+            status != 429) {
+          await _box!.delete(key);
+        }
+        // Otherwise (no response / network error / 5xx) leave it queued.
+      }
+    }
+    return synced;
+  }
+
+  /// Same as [sync] but surfaces a toast when something actually landed —
+  /// the guard queues an entry, walks away from the app, and connectivity
+  /// returns later; without this the entry silently appears in the log with
+  /// no signal that it's now live.
+  static Future<int> syncAndNotify(Dio dio) async {
+    if (pendingCount == 0) return 0;
+    final synced = await sync(dio);
+    if (synced <= 0) return synced;
+    SocketBus.visitorEvents.value++;
+    final ctx = scaffoldMessengerKey.currentContext;
+    if (ctx != null && ctx.mounted) {
+      scaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Text(synced == 1
+              ? '1 offline entry synced — logged now'
+              : '$synced offline entries synced — logged now'),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    }
+    return synced;
+  }
+}
