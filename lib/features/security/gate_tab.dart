@@ -39,9 +39,28 @@ class _GateTabState extends State<GateTab> {
     Haptics.medium();
     try {
       final isEnter = action == 'enter';
-      final confirmed = await showDialog<bool>(context: context, builder: (c) => AlertDialog(title: Text(isEnter ? 'Allow after call?' : 'Deny after call?'), content: const Text('Confirm that you called the resident and received this decision verbally.'), actions: [TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),TextButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Confirm'))]));
+      final isExit = action == 'exit';
+      // Checking a guest OUT is not an approval decision — it must never be
+      // labelled "Deny after call". Only enter/deny are phone-confirmed.
+      final String title = isExit
+          ? 'Check out this visitor?'
+          : (isEnter ? 'Allow after call?' : 'Deny after call?');
+      final String body = isExit
+          ? 'Confirm the visitor has physically left. This records the exit time.'
+          : 'Confirm that you called the resident and received this decision verbally.';
+      final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+                  title: Text(title),
+                  content: Text(body),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                    TextButton(onPressed: () => Navigator.pop(c, true), child: Text(isExit ? 'Check out' : 'Confirm')),
+                  ]));
       if (confirmed != true) return;
-      await dio.post('/visitors/$id/$action', data: {'decisionSource':'GuardPhoneConfirmation','note':isEnter?'Resident verbally approved by phone':'Resident verbally denied by phone'});
+      await dio.post('/visitors/$id/$action', data: isExit
+          ? {'decisionSource': 'GuardExit', 'note': 'Visitor exited the premises'}
+          : {'decisionSource':'GuardPhoneConfirmation','note':isEnter?'Resident verbally approved by phone':'Resident verbally denied by phone'});
       if (!mounted) return;
       Haptics.success();
       await _listKey.currentState?.reload();
@@ -288,7 +307,7 @@ class _GateTabState extends State<GateTab> {
             _pendingSection(context, dio, pending),
             _section(context, dio, 'Approved — let them in', approved, 'Admit',
                 (id) => _act(dio, id, 'enter')),
-            _section(context, dio, 'Currently inside', inside, 'Check out',
+            _section(context, dio, 'Currently inside', inside, 'Check out (exit)',
                 (id) => _act(dio, id, 'exit')),
             if (all.isEmpty)
               const PulseEmptyState(

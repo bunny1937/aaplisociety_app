@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/network/api_error.dart';
 import '../../core/theme/haptics.dart';
+import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/socket/socket_bus.dart';
 import 'pulse/pulse.dart';
@@ -452,6 +453,19 @@ class _GateCardState extends State<_GateCard> {
     // call button is simply hidden when the backend hasn't supplied one.
     final guardPhone =
         '${visitor['guardPhone'] ?? visitor['gatePhone'] ?? visitor['guardContactNumber'] ?? ''}';
+    final guardName = '${visitor['guardName'] ?? ''}';
+    final gateLabel = '${visitor['gateLabel'] ?? 'Main Gate'}';
+    // The guest's own number, kept strictly separate from the guard number so
+    // "Call guard" can never dial the visitor by mistake.
+    final guestPhone = '${visitor['phone'] ?? visitor['phoneNumber'] ?? ''}';
+    // Dev-visible reason why no photo rendered, instead of silently showing a
+    // person glyph as though that were normal.
+    final photoKey = '${visitor['photoKey'] ?? ''}';
+    final String? photoProblem = photoUrl.isNotEmpty
+        ? null
+        : (photoKey.isNotEmpty
+            ? 'Photo captured (key: $photoKey) but no signed URL returned — R2 read/signing failed.'
+            : 'No photo was uploaded to R2 for this visitor.');
     return PulseCard(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -474,10 +488,11 @@ class _GateCardState extends State<_GateCard> {
                       ? Image.network(photoUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Icon(
-                              Icons.person_rounded,
-                              color: t.warning,
+                              Icons.broken_image_outlined,
+                              color: t.danger,
                               size: 19))
-                      : Icon(Icons.person_rounded, color: t.warning, size: 19),
+                      : Icon(Icons.no_photography_outlined,
+                          color: t.danger, size: 19),
                 ),
               ),
               const SizedBox(width: 10),
@@ -495,12 +510,83 @@ class _GateCardState extends State<_GateCard> {
                   ],
                 ),
               ),
-              // Call the guard/gate about this visitor.
-              if (guardPhone.isNotEmpty)
-                PulseIconButton(
-                    icon: Icons.call_rounded, onTap: () => _call(guardPhone)),
+              // Call the GUARD (never the guest). When the backend hasn't sent
+              // a guard number we say so instead of dialling whatever number
+              // happens to be on the payload.
+              PulseIconButton(
+                icon: Icons.support_agent_rounded,
+                onTap: () {
+                  if (guardPhone.isNotEmpty) {
+                    _call(guardPhone);
+                  } else {
+                    showAppToast(context,
+                        'No guard number on this entry — backend did not send guardPhone/gatePhone.',
+                        kind: AppToastKind.alert);
+                  }
+                },
+              ),
             ],
           ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                  guardName.isNotEmpty
+                      ? 'Logged by $guardName · $gateLabel'
+                      : gateLabel,
+                  style: TextStyle(
+                      fontSize: 11.5, color: t.fg3, fontWeight: FontWeight.w600)),
+              PulseButton(
+                label: 'Call guard',
+                size: PulseBtnSize.sm,
+                variant: PulseBtnVariant.ghost,
+                onTap: () {
+                  if (guardPhone.isNotEmpty) {
+                    _call(guardPhone);
+                  } else {
+                    showAppToast(context,
+                        'No guard number available for this entry.',
+                        kind: AppToastKind.alert);
+                  }
+                },
+              ),
+              if (guestPhone.isNotEmpty)
+                PulseButton(
+                  label: 'Call guest',
+                  size: PulseBtnSize.sm,
+                  variant: PulseBtnVariant.ghost,
+                  onTap: () => _call(guestPhone),
+                ),
+            ],
+          ),
+          // Photo diagnostics — deliberately shown in the UI while in dev so
+          // an R2 upload/signing failure is never mistaken for "no photo".
+          if (photoProblem != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                  color: t.dangerSoft,
+                  borderRadius: BorderRadius.circular(PulseTokens.radiusSm)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.error_outline_rounded, size: 15, color: t.danger),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: Text(photoProblem,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: t.danger,
+                              fontWeight: FontWeight.w600))),
+                ],
+              ),
+            ),
+          ],
           // Note the guard attached when logging this visitor at the gate.
           if (guardNote.isNotEmpty) ...[
             const SizedBox(height: 10),

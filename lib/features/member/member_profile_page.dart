@@ -8,6 +8,7 @@ import '../../core/theme/haptics.dart';
 import '../../core/network/api_error.dart';
 import '../auth/bloc/auth_bloc.dart';
 import 'pulse/pulse.dart';
+import 'profile/tenant_details_page.dart';
 
 /// Profile tab — port of ui_kits/member-v2 `ScreensVisitorsProfile.jsx`
 /// `ProfileScreen`: gradient header + a tile list. Each info section (Flat
@@ -64,6 +65,26 @@ class MemberProfilePage extends StatelessWidget {
             label: 'Basic details',
             onTap: () {
               Haptics.light();
+              // A tenant opening "Basic details" used to be shown the OWNER's
+              // record, which is both wrong and a privacy leak. Tenants now
+              // get their own tenancy details page, in the same layout.
+              if (occupancyType == 'Tenant') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => TenantDetailsPage(
+                      user: user,
+                      member: member,
+                      flatNo: flatNo,
+                      wing: wing,
+                      email: email,
+                      societyName: societyName,
+                      parkingSlots: parkingSlots,
+                      familyMembers: familyMembers,
+                    ),
+                  ),
+                );
+                return;
+              }
               context.push('/profile/basic-details', extra: {
                 'member': member,
                 'flatNo': flatNo,

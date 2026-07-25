@@ -58,3 +58,67 @@ Future<List> fetchTenantHistory(Dio dio) async {
       .map((e) => {...e, '_section': 'past'}));
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Owner-side tenant lifecycle + rent management.
+// ---------------------------------------------------------------------------
+
+/// Owner confirms or rejects a rent payment the tenant submitted.
+Future<Map<String, dynamic>> confirmRentPayment(
+    Dio dio, String id, bool approve, {String? reason}) async {
+  final res = await dio.patch('/rent-payments/$id',
+      data: {'action': approve ? 'confirm' : 'reject', if (reason != null) 'reason': reason});
+  return Map<String, dynamic>.from(res.data as Map);
+}
+
+/// Owner edits a rent record (amount / mode / month / notes).
+Future<Map<String, dynamic>> updateRentPayment(
+    Dio dio, String id, Map<String, dynamic> patch) async {
+  final res = await dio.patch('/rent-payments/$id', data: patch);
+  return Map<String, dynamic>.from(res.data as Map);
+}
+
+/// Owner deletes a rent record.
+Future<void> deleteRentPayment(Dio dio, String id) async {
+  await dio.delete('/rent-payments/$id');
+}
+
+/// Owner ends the active lease (tenant moves out).
+Future<Map<String, dynamic>> endLease(Dio dio, String requestId,
+    {String? endDate, String? note}) async {
+  final res = await dio.post('/tenant-requests/$requestId/end-lease',
+      data: {if (endDate != null) 'leaseEndDate': endDate, if (note != null) 'note': note});
+  return Map<String, dynamic>.from(res.data as Map);
+}
+
+/// Owner aborts a still-pending onboarding request.
+Future<void> abortTenantRequest(Dio dio, String requestId) async {
+  await dio.post('/tenant-requests/$requestId/abort');
+}
+
+/// Owner requests a lease-date change (needs admin approval).
+Future<Map<String, dynamic>> requestLeaseDateChange(
+    Dio dio, String requestId, Map<String, dynamic> payload) async {
+  final res = await dio.post('/tenant-requests/$requestId/lease-change', data: payload);
+  return Map<String, dynamic>.from(res.data as Map);
+}
+
+/// Owner attaches a document that was missing at onboarding time.
+Future<Map<String, dynamic>> attachTenantDocument(
+    Dio dio, String requestId, String field, String key) async {
+  final res = await dio.post('/tenant-requests/$requestId/documents',
+      data: {'field': field, 'key': key});
+  return Map<String, dynamic>.from(res.data as Map);
+}
+
+/// Owner adds a private note to the tenancy.
+Future<Map<String, dynamic>> addTenantNote(
+    Dio dio, String requestId, String note) async {
+  final res = await dio.post('/tenant-requests/$requestId/notes', data: {'note': note});
+  return Map<String, dynamic>.from(res.data as Map);
+}
+
+/// Owner nudges the tenant about pending rent (push + in-app).
+Future<void> sendRentReminder(Dio dio, {required String month, required num amount}) async {
+  await dio.post('/rent-payments/remind', data: {'month': month, 'amount': amount});
+}

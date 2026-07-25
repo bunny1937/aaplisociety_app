@@ -1,6 +1,0 @@
-export * from "./roles"
-export * from "./notifications"
-export * from "./visitor"
-export * from "./bill"
-export * from "./rooms"
-export * from "./occupancy"

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:dio/dio.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/socket/socket_bus.dart';
+import '../../core/theme/haptics.dart';
 import '../auth/bloc/auth_bloc.dart';
 import 'pulse/pulse.dart';
 import 'pulse/notice_emoji.dart';
@@ -17,7 +18,12 @@ class _DashData {
   final List visitors;
   final List complaints;
   final List notices;
-  const _DashData(this.bills, this.visitors, this.complaints, this.notices);
+
+  /// Rent payments for the logged-in flat. Tenants see their rent ledger here
+  /// instead of the owner's maintenance bill, so the dashboard needs it too.
+  final List rents;
+  const _DashData(this.bills, this.visitors, this.complaints, this.notices,
+      this.rents);
 }
 
 /// Home tab — port of ui_kits/member-v2 `MemberV2ScreensDashboard.jsx`
@@ -58,11 +64,25 @@ class _DashboardPageState extends State<DashboardPage> {
       dio.get('/complaints'),
       dio.get('/notices'),
     ]);
+    // Rent is fetched separately and tolerantly: owners of self-occupied flats
+    // have no rent records, and a failure here must never blank the dashboard.
+    List rents = const [];
+    try {
+      final res = await dio.get('/rent-payments');
+      final body = res.data;
+      rents = (body is Map
+              ? (body['payments'] ?? body['rentPayments'] ?? body['items'])
+              : body) as List? ??
+          const [];
+    } catch (_) {
+      rents = const [];
+    }
     return _DashData(
       results[0].data['bills'] as List,
       results[1].data['visitors'] as List,
       results[2].data['complaints'] as List,
       results[3].data['notices'] as List,
+      rents,
     );
   }
 
@@ -141,6 +161,23 @@ class _DashboardPageState extends State<DashboardPage> {
               return db.compareTo(da);
             });
           final latestNotices = sortedNotices.take(2).toList();
+          // A tenant does not owe maintenance - the flat's owner does. So the
+          // whole money column of this screen switches to rent for tenants.
+          final isTenant = claims['occupancyType'] == 'Tenant';
+          num rentPaidTotal = 0;
+          num rentPending = 0;
+          Map? lastRent;
+          for (final raw in data.rents) {
+            final r = raw as Map;
+            final amt = (r['amount'] as num?) ?? 0;
+            final st = '${r['status'] ?? 'Confirmed'}';
+            if (st == 'Confirmed') {
+              rentPaidTotal += amt;
+            } else if (st == 'Pending') {
+              rentPending += amt;
+            }
+            lastRent ??= r;
+          }
           return SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
@@ -178,13 +215,19 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
                 const SizedBox(height: 18),
-                if (currentBill != null) _HeroBillCard(bill: currentBill),
+                if (isTenant)
+                  _HeroRentCard(
+                      lastRent: lastRent,
+                      pendingAmount: rentPending,
+                      paidTotal: rentPaidTotal)
+                else if (currentBill != null)
+                  _HeroBillCard(bill: currentBill),
                 if (pendingVisitors.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   _NeedsAttentionCard(visitor: pendingVisitors.first as Map),
                 ],
                 const SizedBox(height: 20),
-                _QuickActions(),
+                _QuickActions(isTenant: isTenant),
                 const SizedBox(height: 24),
                 Text('Account snapshot',
                     style: TextStyle(
@@ -196,15 +239,20 @@ class _DashboardPageState extends State<DashboardPage> {
                   children: [
                     Expanded(
                         child: _SnapshotCard(
-                            label: 'Total outstanding',
-                            value: outstanding,
-                            tone: outstanding > 0 ? t.danger : t.success)),
+                            label: isTenant
+                                ? 'Rent awaiting confirmation'
+                                : 'Total outstanding',
+                            value: isTenant ? rentPending : outstanding,
+                            tone: (isTenant ? rentPending : outstanding) > 0
+                                ? t.danger
+                                : t.success)),
                     const SizedBox(width: 12),
                     Expanded(
                         child: _SnapshotCard(
-                            label:
-                                'Paid (FY ${fyStartYear % 100}-${(fyStartYear + 1) % 100})',
-                            value: paidThisYear,
+                            label: isTenant
+                                ? 'Rent paid to owner'
+                                : 'Paid (FY ${fyStartYear % 100}-${(fyStartYear + 1) % 100})',
+                            value: isTenant ? rentPaidTotal : paidThisYear,
                             tone: t.success)),
                   ],
                 ),
@@ -476,11 +524,20 @@ class _NeedsAttentionCard extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
+  const _QuickActions({required this.isTenant});
+  final bool isTenant;
   @override
   Widget build(BuildContext context) {
     final t = context.pulse;
     final actions = [
-      (Icons.wallet_rounded, 'Pay', t.brand, () => memberTabNotifier.value = 1),
+      // Owners land on the payment history (what was paid, when, how) rather
+      // than the bills tab. Tenants land on their rent payments.
+      (
+        Icons.wallet_rounded,
+        isTenant ? 'Rent' : 'Payments',
+        t.brand,
+        () => context.push(isTenant ? '/rent-payments' : '/payment-history')
+      ),
       (
         Icons.receipt_long_rounded,
         'Ledger',
@@ -616,6 +673,152 @@ class _NoticePreview extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Tenant counterpart of [_HeroBillCard]. A tenant owes rent to the owner, not
+/// maintenance to the society, so this shows the rent position instead.
+class _HeroRentCard extends StatelessWidget {
+  const _HeroRentCard({
+    required this.lastRent,
+    required this.pendingAmount,
+    required this.paidTotal,
+  });
+  final Map? lastRent;
+  final num pendingAmount;
+  final num paidTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.pulse;
+    final r = lastRent;
+    final status = r == null ? null : '${r['status'] ?? 'Confirmed'}';
+    final awaiting = status == 'Pending';
+    final month = r?['month']?.toString();
+    final amount = (r?['amount'] as num?) ?? 0;
+    return GestureDetector(
+      onTap: () {
+        Haptics.light();
+        context.push('/rent-payments');
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [t.brand, t.brand2],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(PulseTokens.radius),
+          boxShadow: t.shadowPop,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.home_work_rounded,
+                    color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  r == null
+                      ? 'Rent'
+                      : 'Rent${month != null ? ' · $month' : ''}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700),
+                ),
+                const Spacer(),
+                if (r != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      awaiting ? 'Awaiting owner' : '$status',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              r == null ? '—' : inr(amount),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.8),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              r == null
+                  ? 'No rent payment recorded yet. Tap to submit one.'
+                  : awaiting
+                      ? 'Submitted. Your owner has to confirm it.'
+                      : 'Last rent payment recorded.',
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.88), fontSize: 12.5),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                _RentStat(label: 'Paid so far', value: inr(paidTotal)),
+                const SizedBox(width: 20),
+                _RentStat(
+                    label: 'Awaiting confirmation', value: inr(pendingAmount)),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(PulseTokens.radiusSm),
+              ),
+              child: Text(
+                'Record a rent payment',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: t.brand, fontSize: 14, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RentStat extends StatelessWidget {
+  const _RentStat({required this.label, required this.value});
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8), fontSize: 11)),
+        const SizedBox(height: 2),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w800)),
+      ],
     );
   }
 }

@@ -16,6 +16,9 @@ import '../features/auth/reset_password_page.dart';
 import '../features/tenant/add_tenant_page.dart';
 import '../features/tenant/rent_payment_page.dart';
 import '../features/tenant/tenant_history_page.dart';
+import '../features/tenant/my_tenant_page.dart';
+import '../features/tenant/manage_tenants_page.dart';
+import '../features/member/payment_history_page.dart';
 import '../features/notifications/notification_center_page.dart';
 import '../features/member/profile/flat_details_page.dart';
 import '../features/member/profile/contact_page.dart';
@@ -88,6 +91,15 @@ GoRouter buildRouter() => GoRouter(
         GoRoute(
             path: '/rent-payments',
             pageBuilder: (c, s) => _fade(const RentPaymentPage(), s)),
+        GoRoute(
+            path: '/my-tenant',
+            pageBuilder: (c, s) => _fade(const MyTenantPage(), s)),
+        GoRoute(
+            path: '/manage-tenants',
+            pageBuilder: (c, s) => _fade(const ManageTenantsPage(), s)),
+        GoRoute(
+            path: '/payment-history',
+            pageBuilder: (c, s) => _fade(const PaymentHistoryPage(), s)),
         GoRoute(
             path: '/tenant-history',
             pageBuilder: (c, s) => _fade(const TenantHistoryPage(), s)),

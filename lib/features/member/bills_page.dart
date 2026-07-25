@@ -384,21 +384,27 @@ class _BillThumbCard extends StatelessWidget {
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
-                  Text(inr(amount),
+                  // The BIG number is what the resident actually has to pay
+                  // right now. The gross bill amount is the small second line.
+                  Text(inr(balance > 0 ? balance : 0),
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 19,
                           fontWeight: FontWeight.w800)),
-                  // `amount` is totalAmount/totalBillDue (this month's charge
-                  // + any carried-over balance + interest), not just this
-                  // month's charge - label it so it isn't mistaken for the
-                  // "Current Bill" figure shown separately on the web admin
-                  // table, which is a smaller number for the same bill.
-                  Text('Total due',
+                  Text(balance > 0 ? 'Payable now' : 'Nothing payable',
                       style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.65),
+                          color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 9.5,
-                          fontWeight: FontWeight.w600)),
+                          fontWeight: FontWeight.w700)),
+                  if (paid > 0 || balance != amount) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                        'Bill ${inr(amount)}${paid > 0 ? ' · paid ${inr(paid)}' : ''}',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600)),
+                  ],
                 ],
               ),
             ),
