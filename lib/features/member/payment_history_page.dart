@@ -46,20 +46,28 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
                 })
             .toList();
       } else {
-        final res = await dio.get('/payments/history');
+        // Owner "payment history" is the Credit side of /ledger — there is no
+        // separate /payments/history endpoint (that call 404'd forever).
+        final res = await dio.get('/ledger');
         final data = Map<String, dynamic>.from(res.data as Map);
-        rows = (data['payments'] as List? ?? data['transactions'] as List? ?? const [])
-            .map((p) => {
-                  'date': p['date'] ?? p['paidAt'] ?? p['createdAt'],
-                  'label': p['description'] ?? p['billPeriodId'] ?? 'Payment',
-                  'mode': p['paymentMode'] ?? p['mode'],
-                  'amount': p['amount'],
-                  'status': p['status'] ?? 'Received',
-                  'applied': p['principalCleared'],
-                  'interest': p['interestCleared'],
-                  'advance': p['advanceCredit'],
-                  'receiptNo': p['receiptNumber'] ?? p['receiptNo'],
-                })
+        final txns = (data['transactions'] as List? ?? const [])
+            .cast<Map>()
+            .where((t) => t['type'] == 'Credit');
+        rows = txns
+            .map((p) {
+              final breakdown = (p['paymentBreakdown'] as Map?) ?? const {};
+              return {
+                'date': p['date'],
+                'label': p['description'] ?? p['category'] ?? 'Payment',
+                'mode': p['paymentMode'],
+                'amount': p['amount'],
+                'status': 'Confirmed',
+                'applied': breakdown['principalCleared'],
+                'interest': breakdown['interestCleared'],
+                'advance': breakdown['advanceCredit'],
+                'receiptNo': p['transactionRef'] ?? p['chequeNo'] ?? p['transactionId'],
+              };
+            })
             .toList();
       }
       num total = 0, pending = 0;

@@ -90,7 +90,8 @@ class _VisitorsPageState extends State<VisitorsPage> {
               final pending =
                   all.where((v) => (v as Map)['status'] == 'Pending').toList();
               final today = all.where((v) {
-                final d = DateTime.tryParse('${(v as Map)['createdAt']}');
+                final d = DateTime.tryParse('${(v as Map)['createdAt']}')
+                    ?.toLocal();
                 final now = DateTime.now();
                 return d != null &&
                     d.year == now.year &&

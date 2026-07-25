@@ -144,15 +144,22 @@ class _NewEntryTabState extends State<NewEntryTab> {
     setState(() => _photo = picked);
   }
 
-  Future<void> _uploadPhoto(Dio dio, String visitorId, XFile photo) async {
+  /// Returns null on success, or an error message if the upload failed.
+  /// Never throws — a failed photo upload must not block the visitor entry
+  /// itself, since the entry has already been created server-side by the
+  /// time this runs.
+  Future<String?> _uploadPhoto(Dio dio, String visitorId, XFile photo) async {
     try {
       final compressed = await compressForUpload(File(photo.path));
       final form = FormData.fromMap({
         'file': MultipartFile.fromBytes(compressed, filename: '$visitorId.jpg'),
       });
       await dio.post('/visitors/$visitorId/upload-photo', data: form);
+      return null;
     } on DioException catch (err) {
-      throw Exception('Visitor logged, but photo upload failed: ${err.response?.data ?? err.message}');
+      return '${err.response?.data ?? err.message}';
+    } catch (err) {
+      return '$err';
     }
   }
 
@@ -215,13 +222,19 @@ class _NewEntryTabState extends State<NewEntryTab> {
       final res = await dio.post('/visitors/guard-request', data: payload);
       if (!mounted) return;
       final visitorId = (res.data as Map)['_id'] as String?;
+      String? photoError;
       if (_photo != null && visitorId != null) {
-        await _uploadPhoto(dio, visitorId, _photo!);
+        photoError = await _uploadPhoto(dio, visitorId, _photo!);
       }
       if (!mounted) return;
       Haptics.success();
-      showAppToast(context, 'Resident notified — awaiting approval',
-          kind: AppToastKind.success);
+      if (photoError != null) {
+        showAppToast(context, 'Resident notified, but photo upload failed: $photoError',
+            kind: AppToastKind.alert);
+      } else {
+        showAppToast(context, 'Resident notified — awaiting approval',
+            kind: AppToastKind.success);
+      }
       _resetForm();
       // Gate tab only refreshes off SocketBus events or its own 20s poll —
       // this device just created the entry, so bump it directly instead of
@@ -279,12 +292,18 @@ class _NewEntryTabState extends State<NewEntryTab> {
       if (!mounted) return;
       final visitorId = (res.data as Map)['visitor']?['_id'] as String? ??
           (res.data as Map)['_id'] as String?;
+      String? photoError;
       if (_photo != null && visitorId != null) {
-        await _uploadPhoto(dio, visitorId, _photo!);
+        photoError = await _uploadPhoto(dio, visitorId, _photo!);
       }
       if (!mounted) return;
       Haptics.success();
-      showAppToast(context, 'Entry logged', kind: AppToastKind.success);
+      if (photoError != null) {
+        showAppToast(context, 'Entry logged, but photo upload failed: $photoError',
+            kind: AppToastKind.alert);
+      } else {
+        showAppToast(context, 'Entry logged', kind: AppToastKind.success);
+      }
       _resetForm();
       SocketBus.visitorEvents.value++;
       widget.onDone?.call();
