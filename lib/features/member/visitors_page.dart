@@ -459,14 +459,16 @@ class _GateCardState extends State<_GateCard> {
     // The guest's own number, kept strictly separate from the guard number so
     // "Call guard" can never dial the visitor by mistake.
     final guestPhone = '${visitor['phone'] ?? visitor['phoneNumber'] ?? ''}';
-    // Dev-visible reason why no photo rendered, instead of silently showing a
-    // person glyph as though that were normal.
+    // Resident-facing explanation of a missing photo. The previous strings
+    // leaked internal detail to end users ("no signed URL returned — R2
+    // read/signing failed", plus the raw storage key). Residents get plain
+    // language; the diagnostics belong in logs, not on a visitor card.
     final photoKey = '${visitor['photoKey'] ?? ''}';
     final String? photoProblem = photoUrl.isNotEmpty
         ? null
         : (photoKey.isNotEmpty
-            ? 'Photo captured (key: $photoKey) but no signed URL returned — R2 read/signing failed.'
-            : 'No photo was uploaded to R2 for this visitor.');
+            ? 'Photo is still processing \u2014 try again in a moment.'
+            : 'No photo was taken at the gate for this visitor.');
     return PulseCard(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -521,7 +523,8 @@ class _GateCardState extends State<_GateCard> {
                     _call(guardPhone);
                   } else {
                     showAppToast(context,
-                        'No guard number on this entry — backend did not send guardPhone/gatePhone.',
+                        'No guard number on this entry. Call the gate from '
+                        'the society directory instead.',
                         kind: AppToastKind.alert);
                   }
                 },
@@ -549,7 +552,8 @@ class _GateCardState extends State<_GateCard> {
                     _call(guardPhone);
                   } else {
                     showAppToast(context,
-                        'No guard number available for this entry.',
+                        'No guard number on this entry. Call the gate from '
+                        'the society directory instead.',
                         kind: AppToastKind.alert);
                   }
                 },

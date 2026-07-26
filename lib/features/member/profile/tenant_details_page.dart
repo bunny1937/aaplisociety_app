@@ -168,7 +168,7 @@ class _TenantDetailsPageState extends State<TenantDetailsPage> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Tenant \u00b7 ${wing != null && wing!.isNotEmpty ? '$wing-' : ''}${_v(flatNo)}'
+                        'Tenant \u00b7 ${wing != null && wing.isNotEmpty ? '$wing-' : ''}${_v(flatNo)}'
                         '${societyName != null ? ' \u00b7 $societyName' : ''}',
                         style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.9),
@@ -238,7 +238,7 @@ class _TenantDetailsPageState extends State<TenantDetailsPage> {
           ]),
 
           _Section(title: 'Flat & owner', rows: [
-            ('Flat', '${wing != null && wing!.isNotEmpty ? '$wing-' : ''}${_v(flatNo)}'),
+            ('Flat', '${wing != null && wing.isNotEmpty ? '$wing-' : ''}${_v(flatNo)}'),
             ('Floor', _v(member?['floor'])),
             ('Carpet area', member?['areaSqFt'] == null
                 ? '\u2014'

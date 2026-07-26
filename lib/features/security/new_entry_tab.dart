@@ -221,10 +221,18 @@ class _NewEntryTabState extends State<NewEntryTab> {
     try {
       final res = await dio.post('/visitors/guard-request', data: payload);
       if (!mounted) return;
-      final visitorId = (res.data as Map)['_id'] as String?;
+      final visitorId = _extractVisitorId(res.data);
       String? photoError;
-      if (_photo != null && visitorId != null) {
-        photoError = await _uploadPhoto(dio, visitorId, _photo!);
+      if (_photo != null) {
+        // Root cause of "visitor photos never reach R2": this used to read
+        // res.data['_id'], but /visitors/guard-request responds with
+        // { ok: true, visitorId: "..." }. visitorId was therefore always null
+        // and the `visitorId != null` guard skipped the upload silently, with
+        // no error anywhere. Now the id is parsed from every shape the two
+        // endpoints return, and a missing id is reported instead of ignored.
+        photoError = visitorId == null
+            ? 'Could not attach the photo \u2014 the entry was saved without it.'
+            : await _uploadPhoto(dio, visitorId, _photo!);
       }
       if (!mounted) return;
       Haptics.success();
@@ -290,11 +298,12 @@ class _NewEntryTabState extends State<NewEntryTab> {
     try {
       final res = await dio.post('/visitors/offline-entry', data: payload);
       if (!mounted) return;
-      final visitorId = (res.data as Map)['visitor']?['_id'] as String? ??
-          (res.data as Map)['_id'] as String?;
+      final visitorId = _extractVisitorId(res.data);
       String? photoError;
-      if (_photo != null && visitorId != null) {
-        photoError = await _uploadPhoto(dio, visitorId, _photo!);
+      if (_photo != null) {
+        photoError = visitorId == null
+            ? 'Could not attach the photo \u2014 the entry was saved without it.'
+            : await _uploadPhoto(dio, visitorId, _photo!);
       }
       if (!mounted) return;
       Haptics.success();
@@ -530,4 +539,32 @@ class _NewEntryTabState extends State<NewEntryTab> {
       ],
     );
   }
+}
+/// Pulls the new visitor's id out of any response shape the backend uses.
+///
+/// The two creation endpoints disagree, and both have changed over time:
+///   * `POST /visitors/guard-request`  -> `{ ok: true, visitorId: "..." }`
+///   * `POST /visitors/offline-entry`  -> `{ ok: true, visitorId: "..." }`
+///   * older/other handlers            -> `{ ok: true, visitor: { _id } }`
+///
+/// Reading a single hard-coded key is what silently disabled every visitor
+/// photo upload. This accepts all of them, so the photo step no longer depends
+/// on which handler answered.
+String? _extractVisitorId(dynamic data) {
+  if (data is! Map) return null;
+  final candidates = <dynamic>[
+    data['visitorId'],
+    data['_id'],
+    data['id'],
+    (data['visitor'] is Map) ? data['visitor']['_id'] : null,
+    (data['visitor'] is Map) ? data['visitor']['id'] : null,
+    (data['entry'] is Map) ? data['entry']['_id'] : null,
+    (data['data'] is Map) ? data['data']['_id'] : null,
+    (data['data'] is Map) ? data['data']['visitorId'] : null,
+  ];
+  for (final c in candidates) {
+    final s = c?.toString();
+    if (s != null && s.isNotEmpty && s != 'null') return s;
+  }
+  return null;
 }

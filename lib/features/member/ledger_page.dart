@@ -27,16 +27,23 @@ class LedgerPage extends StatelessWidget {
     final claims = auth is AuthAuthed ? auth.claims : const <String, dynamic>{};
     final isTenant = claims['occupancyType'] == 'Tenant';
 
-    return SafeArea(
-      child: Column(
-        children: [
-          PulseTopBar(
-            title: isTenant ? 'Rent Ledger' : 'My Ledger',
-            subtitle: isTenant
-                ? 'Every rent payment you recorded'
-                : 'Bills, payments, interest & adjustments',
-          ),
-          Expanded(
+    // P0 crash fix: this page is pushed as a route from /ledger, but returned
+    // a bare SafeArea + Column with no Scaffold or Material ancestor. Every
+    // Text below then fell back to Flutter's _kErrorTextStyle, which is why
+    // the whole screen rendered as monospace with yellow double underlines.
+    // A Scaffold supplies both the Material ancestor and the themed canvas.
+    return Scaffold(
+      backgroundColor: context.pulse.canvas,
+      body: SafeArea(
+        child: Column(
+          children: [
+            PulseTopBar(
+              title: isTenant ? 'Rent Ledger' : 'My Ledger',
+              subtitle: isTenant
+                  ? 'Every rent payment you recorded'
+                  : 'Bills, payments, interest & adjustments',
+            ),
+            Expanded(
             child: AsyncView<List>(
               cacheKey: isTenant ? '/rent-payments' : '/ledger',
               fetch: () async {
@@ -52,11 +59,12 @@ class LedgerPage extends StatelessWidget {
                 return (await dio.get('/ledger')).data['transactions'] as List;
               },
               builder: (context, entries) => isTenant
-                  ? _RentLedger(entries: entries)
-                  : _OwnerLedger(entries: entries),
+                    ? _RentLedger(entries: entries)
+                    : _OwnerLedger(entries: entries),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

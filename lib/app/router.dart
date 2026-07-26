@@ -6,6 +6,7 @@ import '../features/auth/profile_select_page.dart';
 import '../features/member/member_shell.dart';
 import '../features/member/bills_page.dart';
 import '../features/member/ledger_page.dart';
+import '../features/tenant/tenant_profile_page.dart';
 import '../features/member/receipts_page.dart';
 import '../features/complaints/complaints_page.dart';
 import '../features/security/security_shell.dart';
@@ -96,7 +97,19 @@ GoRouter buildRouter() => GoRouter(
             pageBuilder: (c, s) => _fade(const MyTenantPage(), s)),
         GoRoute(
             path: '/manage-tenants',
-            pageBuilder: (c, s) => _fade(const ManageTenantsPage(), s)),
+            // My Tenant's "Past tenants" row deep-links straight to the
+            // history tab: context.push('/manage-tenants', extra: {'tab':'past'}).
+            pageBuilder: (c, s) {
+              final extra = s.extra as Map?;
+              return _fade(
+                ManageTenantsPage(
+                    initialTab: extra?['tab']?.toString() ?? 'add'),
+                s,
+              );
+            }),
+        GoRoute(
+            path: '/tenant-profile',
+            pageBuilder: (c, s) => _fade(const TenantProfilePage(), s)),
         GoRoute(
             path: '/payment-history',
             pageBuilder: (c, s) => _fade(const PaymentHistoryPage(), s)),

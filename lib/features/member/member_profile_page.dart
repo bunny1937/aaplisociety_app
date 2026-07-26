@@ -1,33 +1,43 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
-import 'pulse/member_display.dart';
-import '../../core/theme/theme_controller.dart';
-import '../../core/theme/haptics.dart';
 import '../../core/network/api_error.dart';
+import '../../core/theme/haptics.dart';
+import '../../core/theme/theme_controller.dart';
+import '../../core/widgets/app_toast.dart';
+import '../../core/widgets/hold_to_confirm.dart';
+import '../../core/widgets/pulse_scaffold.dart';
 import '../auth/bloc/auth_bloc.dart';
-import 'pulse/pulse.dart';
+import '../tenant/tenant_profile_page.dart';
 import 'profile/tenant_details_page.dart';
+import 'pulse/member_display.dart';
+import 'pulse/pulse.dart';
 
-/// Profile tab — port of ui_kits/member-v2 `ScreensVisitorsProfile.jsx`
-/// `ProfileScreen`: gradient header + a tile list. Each info section (Flat
-/// details, Contact, Parking, Family members, Emergency contact) now lives on
-/// its own page under `profile/`, reached via tiles below, instead of being
-/// stacked inline — see docs/superpowers/specs/2026-07-19-profile-restructure-design.md.
-/// Contact/Family members/Emergency contact are editable there by the flat's
-/// owner, but only via an approval-pending request — see that page's Edit flow.
-/// The old page's navigation tiles (Change password / My complaints /
-/// dark-mode toggle) are folded in below unchanged; "Visitor history" tile is
-/// dropped because that history now lives directly on the Visitors tab.
+/// Profile tab.
+///
+/// Restructured per the audit (3.3): the old page was one flat 11-row list
+/// where "Raise SOS" sat second, between Notifications and Change password,
+/// styled like every other row. Rows are now grouped by job with section
+/// labels — Account, My Tenancy, Preferences, Emergency — so tenancy work has
+/// a real home and the emergency action is isolated at the bottom behind a
+/// deliberate press-and-hold (see [HoldToConfirm]).
+///
+/// Tenants are routed to [TenantProfilePage] instead, which is their own
+/// environment rather than this page with everything disabled.
 class MemberProfilePage extends StatelessWidget {
   const MemberProfilePage({super.key});
+
   @override
   Widget build(BuildContext context) {
-    final t = context.pulse;
     final auth = context.watch<AuthBloc>().state;
     final user = auth is AuthAuthed ? auth.user : const <String, dynamic>{};
     final claims = auth is AuthAuthed ? auth.claims : const <String, dynamic>{};
+    final occupancyType = claims['occupancyType']?.toString();
+
+    // Tenants get the tenant environment, not a crippled owner page.
+    if (occupancyType == 'Tenant') return const TenantProfilePage();
+
     final displayName = resolveDisplayName(user);
     final email = user['email']?.toString();
     final profiles = (user['profiles'] as List?) ?? const [];
@@ -42,12 +52,11 @@ class MemberProfilePage extends StatelessWidget {
     final role =
         claims['role']?.toString() ?? activeProfile?['role']?.toString();
     final status = activeProfile?['status']?.toString();
-    final occupancyType = claims['occupancyType']?.toString();
     final parkingSlots =
         (member?['parkingSlots'] as List?)?.cast<Map>() ?? const <Map>[];
     final familyMembers =
         (member?['familyMembers'] as List?)?.cast<Map>() ?? const <Map>[];
-    final canEdit = occupancyType != 'Tenant';
+
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
@@ -59,129 +68,128 @@ class MemberProfilePage extends StatelessWidget {
               societyName: societyName,
               role: role,
               status: status),
-          const SizedBox(height: 20),
-          _Tile(
-            icon: Icons.badge_outlined,
-            label: 'Basic details',
-            onTap: () {
-              Haptics.light();
-              // A tenant opening "Basic details" used to be shown the OWNER's
-              // record, which is both wrong and a privacy leak. Tenants now
-              // get their own tenancy details page, in the same layout.
-              if (occupancyType == 'Tenant') {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => TenantDetailsPage(
-                      user: user,
-                      member: member,
-                      flatNo: flatNo,
-                      wing: wing,
-                      email: email,
-                      societyName: societyName,
-                      parkingSlots: parkingSlots,
-                      familyMembers: familyMembers,
-                    ),
-                  ),
-                );
-                return;
-              }
-              context.push('/profile/basic-details', extra: {
-                'member': member,
-                'flatNo': flatNo,
-                'wing': wing,
-                'email': email,
-                'canEdit': canEdit,
-                'parkingSlots': parkingSlots,
-                'familyMembers': familyMembers,
-              });
-            },
+          const SizedBox(height: 22),
+
+          // ---- Account ---------------------------------------------------
+          const PulseSectionLabel('Account'),
+          PulseGroup(
+            children: [
+              PulseRow(
+                icon: Icons.badge_outlined,
+                label: 'Basic details',
+                sublabel: 'Name, flat, family and parking',
+                onTap: () {
+                  Haptics.light();
+                  context.push('/profile/basic-details', extra: {
+                    'member': member,
+                    'flatNo': flatNo,
+                    'wing': wing,
+                    'email': email,
+                    'canEdit': true,
+                    'parkingSlots': parkingSlots,
+                    'familyMembers': familyMembers,
+                  });
+                },
+              ),
+              PulseRow(
+                icon: Icons.notifications_outlined,
+                label: 'Notifications',
+                onTap: () {
+                  Haptics.light();
+                  context.push('/notifications');
+                },
+              ),
+              PulseRow(
+                icon: Icons.report_problem_outlined,
+                label: 'My complaints',
+                onTap: () {
+                  Haptics.light();
+                  context.push('/complaints');
+                },
+              ),
+              PulseRow(
+                icon: Icons.lock_outline_rounded,
+                label: 'Change password',
+                onTap: () {
+                  Haptics.light();
+                  context.push('/change-password');
+                },
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text('More',
-              style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w800, color: t.fg1)),
-          const SizedBox(height: 10),
-          const _SosTile(),
-          _Tile(
-              icon: Icons.notifications_outlined,
-              label: 'Notifications',
-              onTap: () {
-                Haptics.light();
-                context.push('/notifications');
-              }),
-          _Tile(
-              icon: Icons.lock_outline_rounded,
-              label: 'Change password',
-              onTap: () {
-                Haptics.light();
-                context.push('/change-password');
-              }),
-          _Tile(
-              icon: Icons.report_problem_outlined,
-              label: 'My complaints',
-              onTap: () {
-                Haptics.light();
-                context.push('/complaints');
-              }),
-          if (occupancyType != 'Tenant')
-            _Tile(
+
+          // ---- My Tenancy -------------------------------------------------
+          // The three ported tenancy screens, grouped so it is obvious they
+          // belong together. Previously "Add Tenant", "Rent Payments" and
+          // "Tenant History" were scattered among unrelated settings rows and
+          // used three different words for the same subject.
+          const PulseSectionLabel('My tenancy'),
+          PulseGroup(
+            children: [
+              PulseRow(
+                icon: Icons.people_alt_outlined,
+                label: 'My tenant',
+                sublabel: 'Current tenancy, rent confirmations and notes',
+                onTap: () {
+                  Haptics.light();
+                  context.push('/my-tenant');
+                },
+              ),
+              PulseRow(
                 icon: Icons.key_outlined,
-                label: 'Add Tenant',
+                label: 'Manage tenants',
+                sublabel: 'Add a tenant or record past tenancies',
                 onTap: () {
                   Haptics.light();
-                  context.push('/add-tenant');
-                }),
-          _Tile(
-              icon: Icons.receipt_outlined,
-              label: 'Rent Payments',
-              onTap: () {
-                Haptics.light();
-                context.push('/rent-payments');
-              }),
-          if (occupancyType != 'Tenant')
-            _Tile(
-                icon: Icons.history_outlined,
-                label: 'Tenant History',
+                  context.push('/manage-tenants');
+                },
+              ),
+              PulseRow(
+                icon: Icons.currency_rupee_rounded,
+                label: 'Rent payments',
+                sublabel: 'Record and track rent',
                 onTap: () {
                   Haptics.light();
-                  context.push('/tenant-history');
-                }),
+                  context.push('/rent-payments');
+                },
+              ),
+            ],
+          ),
+
+          // ---- Preferences ------------------------------------------------
+          const PulseSectionLabel('Preferences'),
           ValueListenableBuilder<ThemeMode>(
             valueListenable: themeModeNotifier,
-            builder: (_, mode, __) => Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                  color: t.surface,
-                  border: Border.all(color: t.border),
-                  borderRadius: BorderRadius.circular(PulseTokens.radiusSm)),
-              child: Row(
-                children: [
-                  Icon(
-                      mode == ThemeMode.dark
-                          ? Icons.dark_mode_rounded
-                          : Icons.light_mode_rounded,
-                      color: t.fg3,
-                      size: 19),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: Text('Dark mode',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13.5,
-                              color: t.fg1))),
-                  Switch(
-                      value: mode == ThemeMode.dark,
-                      activeThumbColor: t.brand,
-                      onChanged: (_) {
-                        Haptics.select();
-                        toggleTheme();
-                      }),
-                ],
-              ),
+            builder: (_, mode, __) => PulseGroup(
+              children: [
+                PulseRow(
+                  icon: mode == ThemeMode.dark
+                      ? Icons.dark_mode_rounded
+                      : Icons.light_mode_rounded,
+                  label: 'Dark mode',
+                  trailing: Switch(
+                    value: mode == ThemeMode.dark,
+                    onChanged: (_) {
+                      Haptics.select();
+                      toggleTheme();
+                    },
+                  ),
+                  // Tapping the row toggles too — a 20px switch was the only
+                  // hit target before.
+                  onTap: () {
+                    Haptics.select();
+                    toggleTheme();
+                  },
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
+
+          // ---- Emergency --------------------------------------------------
+          const PulseSectionLabel('Emergency'),
+          const _SosControl(),
+
+          const SizedBox(height: 18),
           PulseButton(
             label: 'Sign out',
             full: true,
@@ -195,6 +203,76 @@ class MemberProfilePage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Raises POST /visitors/sos — a panic alert to security + admin.
+///
+/// Kept the same endpoint and semantics; replaced the tap + `AlertDialog`
+/// (whose "Raise SOS" was a plain `TextButton`, indistinguishable in weight
+/// from "Cancel") with a press-and-hold, and replaced the red `SnackBar` with
+/// the app's own toast so emergency feedback matches the rest of the app.
+class _SosControl extends StatefulWidget {
+  const _SosControl();
+  @override
+  State<_SosControl> createState() => _SosControlState();
+}
+
+class _SosControlState extends State<_SosControl> {
+  bool _sending = false;
+
+  Future<void> _raise() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      await context.read<Dio>().post('/visitors/sos');
+      if (!mounted) return;
+      showAppToast(context, 'SOS alert sent to security and admin',
+          kind: AppToastKind.alert);
+    } on DioException catch (err) {
+      if (!mounted) return;
+      showAppToast(context, apiErrorMessage(err), kind: AppToastKind.alert);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_sending) {
+      final t = context.pulse;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: BoxDecoration(
+          color: t.dangerSoft,
+          borderRadius: BorderRadius.circular(PulseTokens.radius),
+          border: Border.all(color: t.danger.withValues(alpha: 0.45)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child:
+                  CircularProgressIndicator(strokeWidth: 2.4, color: t.danger),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('Alerting security\u2026',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: t.danger)),
+            ),
+          ],
+        ),
+      );
+    }
+    return HoldToConfirm(
+      label: 'Raise SOS',
+      helper: 'Hold for 2 seconds to alert security and admin',
+      onConfirmed: _raise,
     );
   }
 }
@@ -255,7 +333,7 @@ class _Header extends StatelessWidget {
                           color: Colors.white.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(999)),
                       child: Text(
-                          '${role ?? ''}${status != null ? ' · $status' : ''}',
+                          '${role ?? ''}${status != null ? ' \u00B7 $status' : ''}',
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -269,7 +347,7 @@ class _Header extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(flatNo != null ? formatFlatLabel(wing, flatNo) : '—',
+              Text(flatNo != null ? formatFlatLabel(wing, flatNo) : '\u2014',
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -288,120 +366,29 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// Raises POST /visitors/sos — a panic alert to security + admin (see
-/// mobile-backend's visitor.controller.ts and queues/index.ts's
-/// NOTIFICATION_TYPES.VISITOR_SOS handling). Confirms first since this is a
-/// real emergency dispatch, not a reversible action.
-class _SosTile extends StatefulWidget {
-  const _SosTile();
-  @override
-  State<_SosTile> createState() => _SosTileState();
-}
-
-class _SosTileState extends State<_SosTile> {
-  bool _sending = false;
-  Future<void> _raise(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Raise SOS alert?'),
-        content: const Text(
-            'This immediately notifies security and society admins of an emergency at your flat.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child:
-                  const Text('Raise SOS', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    setState(() => _sending = true);
-    Haptics.heavy();
-    try {
-      final dio = context.read<Dio>();
-      await dio.post('/visitors/sos');
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('SOS alert sent to security and admin'),
-            backgroundColor: Colors.red),
-      );
-    } on DioException catch (err) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(apiErrorMessage(err))));
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(PulseTokens.radiusSm),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(PulseTokens.radiusSm),
-          onTap: _sending ? null : () => _raise(context),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            child: Row(
-              children: [
-                const Icon(Icons.sos_rounded, color: Colors.red, size: 20),
-                const SizedBox(width: 12),
-                const Expanded(
-                    child: Text('Raise SOS',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13.5,
-                            color: Colors.red))),
-                if (_sending)
-                  const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Tile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _Tile({required this.icon, required this.label, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    final t = context.pulse;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: PulseCard(
-        onTap: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, color: t.fg3, size: 19),
-            const SizedBox(width: 12),
-            Expanded(
-                child: Text(label,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13.5,
-                        color: t.fg1))),
-            Icon(Icons.chevron_right_rounded, color: t.fg4),
-          ],
-        ),
-      ),
-    );
-  }
+/// Kept for the tenant route that still pushes a details page directly.
+/// [TenantProfilePage] is the primary tenant surface; this preserves the
+/// existing deep link into the tenant's own record.
+Route<void> tenantDetailsRoute({
+  required Map user,
+  required Map? member,
+  String? flatNo,
+  String? wing,
+  String? email,
+  String? societyName,
+  List<Map> parkingSlots = const [],
+  List<Map> familyMembers = const [],
+}) {
+  return MaterialPageRoute(
+    builder: (_) => TenantDetailsPage(
+      user: user,
+      member: member,
+      flatNo: flatNo,
+      wing: wing,
+      email: email,
+      societyName: societyName,
+      parkingSlots: parkingSlots,
+      familyMembers: familyMembers,
+    ),
+  );
 }
