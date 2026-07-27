@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,9 @@ import '../../core/widgets/async_view.dart';
 import '../../core/widgets/pulse_field.dart';
 import '../../core/widgets/pulse_scaffold.dart';
 import '../auth/bloc/auth_bloc.dart';
+import '../../core/theme/haptics.dart';
+import '../../core/theme/theme_controller.dart';
+import '../member/notices_page.dart';
 import '../member/pulse/member_display.dart';
 import '../member/pulse/pulse.dart';
 import 'rent_payment_page.dart';
@@ -38,6 +42,40 @@ class TenantProfilePage extends StatefulWidget {
 
 class _TenantProfilePageState extends State<TenantProfilePage> {
   final _viewKey = GlobalKey<AsyncViewState<Map<String, dynamic>>>();
+
+  /// Pick, upload and attach one of the four required tenancy documents.
+  ///
+  /// The documents card previously listed all four as "Not received" with no way
+  /// anywhere in the tenant surface to actually send them - a permanent list of
+  /// complaints about the user. Uses the same two API calls the owner-side
+  /// add-tenant flow uses: upload the bytes to get a storage key, then attach
+  /// that key to the tenancy record.
+  Future<void> _uploadDoc(String requestId, TenantDocField f) async {
+    final dio = context.read<Dio>();
+    try {
+      // withData: true so we get bytes in memory - uploadTenantDocumentBytes
+      // takes bytes, and on Android the path-based API is unreliable for files
+      // picked from cloud providers.
+      final picked = await FilePicker.platform.pickFiles(
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf'],
+      );
+      final file = picked?.files.single;
+      final bytes = file?.bytes;
+      // Null means the user backed out of the picker, which is not an error.
+      if (bytes == null) return;
+      final key = await uploadTenantDocumentBytes(dio, f.field, bytes,
+          filename: file!.name);
+      await attachTenantDocument(dio, requestId, f.field, key);
+      if (!mounted) return;
+      showAppToast(context, '${f.label} uploaded', kind: AppToastKind.success);
+      await _viewKey.currentState?.reload();
+    } catch (e) {
+      if (!mounted) return;
+      showAppToast(context, apiErrorMessage(e), kind: AppToastKind.alert);
+    }
+  }
 
   Future<Map<String, dynamic>> _load() async {
     final dio = context.read<Dio>();
@@ -297,6 +335,13 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
                         label: f.label,
                         onFile: !docs.contains(f),
                         last: f == kTenantDocFields.last,
+                        // Upload needs a tenancy record to attach to. Until the
+                        // owner registers the tenancy there is nothing to attach
+                        // a document to, so the action is omitted rather than
+                        // failing on tap.
+                        onUpload: tenancy?['_id'] == null
+                            ? null
+                            : () => _uploadDoc('${tenancy!['_id']}', f),
                       ),
                   ],
                 ),
@@ -304,64 +349,51 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
               const SizedBox(height: 18),
 
               // ---- Owner contact --------------------------------------------
-              if (tenancy != null) ...[
-                const TenantSectionTitle('Flat owner'),
-                PulseCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      PulseAvatar(
-                          name: displayName(
-                              tenancy['ownerName'] ?? member['name'],
-                              fallback: 'Owner'),
-                          size: 40),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              displayName(
-                                  tenancy['ownerName'] ?? member['name'],
-                                  fallback: 'Your flat owner'),
-                              style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: t.fg1),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              (tenancy['ownerPhone'] ?? member['phone'])
-                                      ?.toString() ??
-                                  'Contact via the society office',
-                              style:
-                                  TextStyle(fontSize: 11.5, color: t.fg4),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if ((tenancy['ownerPhone'] ?? member['phone']) != null)
-                        PulseIconButton(
-                          icon: Icons.call_rounded,
-                          onTap: () async {
-                            final phone =
-                                (tenancy['ownerPhone'] ?? member['phone'])
-                                    .toString();
-                            final ok =
-                                await launchUrl(Uri.parse('tel:$phone'));
-                            if (!ok && context.mounted) {
-                              showAppToast(context,
-                                  'Could not open the phone dialer',
-                                  kind: AppToastKind.alert);
-                            }
-                          },
-                        ),
-                    ],
+              // This whole section used to be wrapped in `if (tenancy != null)`,
+              // which is why the owner block vanished for exactly the tenants
+              // who need it most: anyone whose tenancy record hasn't been
+              // created by the owner yet saw nothing at all, and the only string
+              // they ever got was "Contact via the society office".
+              //
+              // In an Indian housing society the tenant deals with the landlord
+              // directly - rent, repairs, deposit, notice period. Hiding the
+              // landlord behind the society office is not privacy, it is a
+              // broken product. Always render it, fall back to the flat's
+              // registered member, and give both a call and a message action.
+              const TenantSectionTitle('Flat owner'),
+              _OwnerCard(
+                name: displayName(tenancy?['ownerName'] ?? member['name'],
+                    fallback: 'Your flat owner'),
+                phone: (tenancy?['ownerPhone'] ?? member['phone'])?.toString() ??
+                    '',
+                flatLabel: flatLabel,
+                // Needed for the shared message thread. Null on an older
+                // backend that cannot resolve the tenancy: the card then falls
+                // back to Call + SMS only rather than offering a dead button.
+                requestId: tenancy?['_id']?.toString(),
+              ),
+              const SizedBox(height: 18),
+
+              // ---- Society ---------------------------------------------------
+              // A tenant lives in the society, so they get the society's notices
+              // and can raise complaints. Neither was reachable from anywhere in
+              // the tenant surface before this.
+              const PulseSectionLabel('Society'),
+              PulseGroup(
+                children: [
+                  PulseRow(
+                    icon: Icons.campaign_outlined,
+                    label: 'Notices',
+                    onTap: () => showNoticesSheet(context, context.read<Dio>()),
                   ),
-                ),
-                const SizedBox(height: 18),
-              ],
+                  PulseRow(
+                    icon: Icons.report_gmailerrorred_outlined,
+                    label: 'Complaints',
+                    onTap: () => context.push('/complaints'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
 
               // ---- Account --------------------------------------------------
               const PulseSectionLabel('Account'),
@@ -370,17 +402,75 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
                   PulseRow(
                     icon: Icons.person_outline_rounded,
                     label: 'Personal details',
-                    onTap: () => context.push('/profile/basic-details'),
+                    // THIS is why the tenant's personal details screen was
+                    // blank. `/profile/basic-details` reads everything it shows
+                    // out of `state.extra` (see router.dart) and this call
+                    // passed no extra at all, so member/flat/email/parking/
+                    // family all arrived null and every tab rendered empty.
+                    // The owner side already passed them; the tenant side never
+                    // did.
+                    onTap: () => context.push('/profile/basic-details', extra: {
+                      'member': member,
+                      'flatNo': flatNo,
+                      'wing': wing,
+                      'email': user['email'],
+                      // Read-only for tenants: `member` is the flat's
+                      // registered member record (the owner's), so an editable
+                      // form here would let a tenant rewrite the landlord's
+                      // details.
+                      'canEdit': false,
+                      'parkingSlots':
+                          (member['parkingSlots'] as List?)?.cast<Map>() ??
+                              const <Map>[],
+                      'familyMembers':
+                          (member['familyMembers'] as List?)?.cast<Map>() ??
+                              const <Map>[],
+                    }),
                   ),
-                  PulseRow(
-                    icon: Icons.call_outlined,
-                    label: 'Contact details',
-                    onTap: () => context.push('/profile/contact'),
-                  ),
+                  // 'Contact details' row removed along with the
+                  // /profile/contact route - it was a second screen showing the
+                  // same phone and email as Personal details, and for most
+                  // tenants it rendered empty.
                   PulseRow(
                     icon: Icons.lock_outline_rounded,
                     label: 'Change password',
                     onTap: () => context.push('/change-password'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  // Icon-only theme toggle. A full-width "Dark mode" row with a
+                  // switch was spending a whole line of a scrolling page on a
+                  // preference that is set once. The icon shows the mode you
+                  // will get, which is the convention every other app uses.
+                  ValueListenableBuilder<ThemeMode>(
+                    valueListenable: themeModeNotifier,
+                    builder: (context, mode, _) => PulseIconButton(
+                      icon: mode == ThemeMode.dark
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
+                      onTap: () {
+                        Haptics.select();
+                        toggleTheme();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: PulseButton(
+                      label: 'Sign out',
+                      icon: Icons.logout_rounded,
+                      full: true,
+                      // Destructive action, destructive colour.
+                      variant: PulseBtnVariant.danger,
+                      onTap: () {
+                        Haptics.heavy();
+                        context.read<AuthBloc>().add(LogoutRequested());
+                        context.go('/login');
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -392,14 +482,42 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
   }
 }
 
-class _DocStatusRow extends StatelessWidget {
+class _DocStatusRow extends StatefulWidget {
   final String label;
   final bool onFile;
   final bool last;
+  /// Null when there is no tenancy record to attach a document to yet.
+  final Future<void> Function()? onUpload;
   const _DocStatusRow(
-      {required this.label, required this.onFile, this.last = false});
+      {required this.label,
+      required this.onFile,
+      this.last = false,
+      this.onUpload});
+  @override
+  State<_DocStatusRow> createState() => _DocStatusRowState();
+}
+
+class _DocStatusRowState extends State<_DocStatusRow> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    final action = widget.onUpload;
+    if (action == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+    } finally {
+      // The row can be disposed by the parent's reload() before the upload
+      // resolves, so guard the setState.
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final label = widget.label;
+    final onFile = widget.onFile;
+    final last = widget.last;
     final t = context.pulse;
     return Container(
       constraints: const BoxConstraints(minHeight: 52),
@@ -434,6 +552,17 @@ class _DocStatusRow extends StatelessWidget {
               color: onFile ? t.success : t.warning,
             ),
           ),
+          if (widget.onUpload != null) ...[
+            const SizedBox(width: 10),
+            PulseButton(
+              label: onFile ? 'Replace' : 'Upload',
+              size: PulseBtnSize.sm,
+              variant:
+                  onFile ? PulseBtnVariant.ghost : PulseBtnVariant.secondary,
+              loading: _busy,
+              onTap: _run,
+            ),
+          ],
         ],
       ),
     );
@@ -517,17 +646,41 @@ class _TenantRentFormState extends State<_TenantRentForm> {
                 fontWeight: FontWeight.w600,
                 color: t.fg3)),
         const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: kPaymentModes
-              .where((m) => m != 'Online')
-              .map((m) => ChoiceChip(
-                    label: Text(kPaymentModeLabels[m] ?? m),
-                    selected: _mode == m,
-                    onSelected: (_) => setState(() => _mode = m),
-                  ))
-              .toList(),
+        // 2x2 grid, matching the owner-side rent form. The `.where(Online)`
+        // filter is gone because 'Online' no longer exists in kPaymentModes at
+        // all - it was a mode with no gateway behind it.
+        Column(
+          children: [
+            for (var row = 0; row < kPaymentModes.length; row += 2)
+              Padding(
+                padding: EdgeInsets.only(
+                    bottom: row + 2 < kPaymentModes.length ? 8 : 0),
+                child: Row(
+                  children: [
+                    for (var i = row;
+                        i < row + 2 && i < kPaymentModes.length;
+                        i++) ...[
+                      if (i > row) const SizedBox(width: 8),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: SizedBox(
+                            width: double.infinity,
+                            child: Text(
+                              kPaymentModeLabels[kPaymentModes[i]] ??
+                                  kPaymentModes[i],
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          selected: _mode == kPaymentModes[i],
+                          onSelected: (_) =>
+                              setState(() => _mode = kPaymentModes[i]),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 16),
         PulseButton(
@@ -536,6 +689,367 @@ class _TenantRentFormState extends State<_TenantRentForm> {
           size: PulseBtnSize.lg,
           loading: _saving,
           onTap: _submit,
+        ),
+      ],
+    );
+  }
+}
+
+/// Landlord card for the tenant's profile.
+///
+/// Pulled out of the page build so the section can be rendered unconditionally
+/// (it used to be inline inside an `if (tenancy != null)` spread) and so the
+/// two contact actions have somewhere to live. Phone may be empty - in that case
+/// the actions are disabled rather than hidden, so the card never changes shape.
+class _OwnerCard extends StatelessWidget {
+  final String name;
+  final String phone;
+  final String flatLabel;
+
+  /// Tenancy id, used for the shared owner <-> tenant message thread.
+  final String? requestId;
+  const _OwnerCard({
+    required this.name,
+    required this.phone,
+    required this.flatLabel,
+    this.requestId,
+  });
+
+  Future<void> _launch(BuildContext context, Uri uri, String failure) async {
+    try {
+      final ok = await launchUrl(uri);
+      if (!ok && context.mounted) {
+        showAppToast(context, failure, kind: AppToastKind.alert);
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showAppToast(context, failure, kind: AppToastKind.alert);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.pulse;
+    final hasPhone = phone.isNotEmpty;
+    return PulseCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              PulseAvatar(name: name, size: 42),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(name,
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: t.fg1)),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasPhone
+                          ? phone
+                          : 'No number on record \u2014 ask the society office',
+                      // kTabularFigures is a whole TextStyle, not a
+                      // List<FontFeature>, so it is composed with copyWith
+                      // rather than passed to fontFeatures. Tabular digits only
+                      // for the phone number - it keeps the number from
+                      // shifting width, and means nothing for prose.
+                      style: (hasPhone ? kTabularFigures : const TextStyle())
+                          .copyWith(
+                        fontSize: 12.5,
+                        color: hasPhone ? t.fg2 : t.fg4,
+                      ),
+                    ),
+                    if (flatLabel.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text('Owner of $flatLabel',
+                          style: TextStyle(fontSize: 11.5, color: t.fg4)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: PulseButton(
+                  label: 'Call',
+                  icon: Icons.call_rounded,
+                  size: PulseBtnSize.sm,
+                  disabled: !hasPhone,
+                  onTap: () => _launch(context, Uri.parse('tel:$phone'),
+                      'Could not open the phone dialer'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: requestId == null
+                    // No tenancy id: fall back to plain SMS. Better a working
+                    // text message than an in-app thread that 404s.
+                    ? PulseButton(
+                        label: 'Message',
+                        icon: Icons.sms_outlined,
+                        size: PulseBtnSize.sm,
+                        variant: PulseBtnVariant.secondary,
+                        disabled: !hasPhone,
+                        onTap: () => _launch(context, Uri.parse('sms:$phone'),
+                            'Could not open your messaging app'),
+                      )
+                    // In-app now that the notes route accepts a tenant and
+                    // pushes the other party (it used to be owner-only, which is
+                    // why this was an SMS shortcut). Notify and notes are the
+                    // same thing: posting a message IS the notification.
+                    : PulseButton(
+                        label: 'Notify',
+                        icon: Icons.forum_outlined,
+                        size: PulseBtnSize.sm,
+                        variant: PulseBtnVariant.secondary,
+                        onTap: () =>
+                            showOwnerThreadSheet(context, requestId!, name),
+                      ),
+              ),
+            ],
+          ),
+          if (requestId != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Notify sends an in-app message your owner gets as a notification.',
+              style: TextStyle(fontSize: 11, color: t.fg4),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Shared owner <-> tenant message thread.
+///
+/// The backing route used to be owner-only and wrote a bare string, so a tenant
+/// had no way to reach their landlord from inside the app at all -- the card
+/// offered an SMS shortcut as a stopgap. It now accepts either party, keeps an
+/// ordered `noteThread[]`, and pushes whoever did not write the message. That
+/// makes "notify" and "notes" one feature instead of two half-built ones: the
+/// message IS the notification.
+Future<void> showOwnerThreadSheet(
+    BuildContext context, String requestId, String ownerName) {
+  return showPulseSheet<void>(
+    context,
+    title: 'Messages with $ownerName',
+    full: true,
+    builder: (ctx) => _OwnerThreadBody(
+      dio: context.read<Dio>(),
+      requestId: requestId,
+    ),
+  );
+}
+
+class _OwnerThreadBody extends StatefulWidget {
+  final Dio dio;
+  final String requestId;
+  const _OwnerThreadBody({required this.dio, required this.requestId});
+
+  @override
+  State<_OwnerThreadBody> createState() => _OwnerThreadBodyState();
+}
+
+class _OwnerThreadBodyState extends State<_OwnerThreadBody> {
+  final _controller = TextEditingController();
+  List<Map<String, dynamic>> _notes = const [];
+  bool _loading = true;
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final notes = await fetchTenancyNotes(widget.dio, widget.requestId);
+      if (!mounted) return;
+      setState(() {
+        _notes = notes;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = apiErrorMessage(e);
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _send() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      showAppToast(context, 'Type a message first.', kind: AppToastKind.alert);
+      return;
+    }
+    Haptics.light();
+    setState(() => _sending = true);
+    try {
+      final notes = await postTenancyNote(widget.dio, widget.requestId, text);
+      if (!mounted) return;
+      _controller.clear();
+      setState(() {
+        // The POST returns the full thread, so there is no need to re-GET.
+        _notes = notes;
+        _sending = false;
+      });
+      showAppToast(context, 'Sent \u2014 your owner has been notified.',
+          kind: AppToastKind.success);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      showAppToast(context, apiErrorMessage(e), kind: AppToastKind.alert);
+    }
+  }
+
+  /// Deliberately terse: "14 Mar, 6:05 pm". No relative time here -- on a thread
+  /// that may go weeks between messages "3 weeks ago" is less useful than a date.
+  String _stamp(Object? raw) {
+    final at = DateTime.tryParse('$raw')?.toLocal();
+    if (at == null) return '';
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final hour12 = at.hour % 12 == 0 ? 12 : at.hour % 12;
+    final minute = at.minute.toString().padLeft(2, '0');
+    final suffix = at.hour < 12 ? 'am' : 'pm';
+    return '${at.day} ${months[at.month - 1]}, $hour12:$minute $suffix';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.pulse;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 28),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Column(
+              children: [
+                Text(_error!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: t.danger)),
+                const SizedBox(height: 10),
+                PulseButton(
+                    label: 'Try again',
+                    size: PulseBtnSize.sm,
+                    variant: PulseBtnVariant.secondary,
+                    onTap: _load),
+              ],
+            ),
+          )
+        else if (_notes.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 22),
+            child: Text(
+              'No messages yet. Anything you send here reaches your owner as a\n'
+              'notification \u2014 rent queries, repairs, notice of leaving.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, color: t.fg3, height: 1.45),
+            ),
+          )
+        else
+          ConstrainedBox(
+            // Bounded so a long thread scrolls inside the sheet instead of
+            // overflowing it.
+            constraints: const BoxConstraints(maxHeight: 340),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.only(bottom: 4),
+              itemCount: _notes.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) {
+                final n = _notes[i];
+                final fromTenant = '${n['by']}' == 'Tenant';
+                return Align(
+                  // Yours on the right, the owner's on the left: the oldest
+                  // readable chat convention there is.
+                  alignment:
+                      fromTenant ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 280),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: fromTenant ? t.brand.withValues(alpha: 0.10) : t.surface3,
+                      borderRadius: BorderRadius.circular(PulseTokens.radiusSm),
+                      border: Border.all(color: t.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('${n['text'] ?? ''}',
+                            style: TextStyle(
+                                fontSize: 13.5,
+                                height: 1.35,
+                                color: t.fg1,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${fromTenant ? 'You' : 'Owner'} \u00b7 ${_stamp(n['at'])}',
+                          style: TextStyle(fontSize: 10.5, color: t.fg4),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 12),
+        PulseField(
+          label: 'Message',
+          hint: 'e.g. The geyser in the bathroom has stopped working.',
+          controller: _controller,
+          maxLines: 3,
+          enabled: !_sending,
+        ),
+        const SizedBox(height: 10),
+        PulseButton(
+          label: 'Send to owner',
+          icon: Icons.send_rounded,
+          full: true,
+          loading: _sending,
+          disabled: _sending,
+          onTap: _send,
         ),
       ],
     );

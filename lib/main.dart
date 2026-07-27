@@ -14,6 +14,7 @@ import 'core/push/push_service.dart';
 import 'core/push/firebase_bootstrap.dart';
 import 'core/permissions/push_resume_gate.dart';
 import 'core/socket/realtime_poller.dart';
+import 'core/sos/sos_alarm.dart';
 import 'core/widgets/app_toast.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
@@ -121,10 +122,36 @@ class AapliApp extends StatelessWidget {
                 onEvent: (event, data) {
                   debugPrint('[poll] $event -> $data');
                   if (event == 'VISITOR_SOS') {
+                    // Was a 4-second grey-red SnackBar that said "SOS alert from
+                    // the gate" and then vanished. If the guard was not staring
+                    // at the screen at that exact moment, the emergency was
+                    // gone. Now it rings on the alarm stream (audible on
+                    // silent), vibrates, names the flat and the reason, and does
+                    // not stop until somebody presses STOP.
+                    final flat = [
+                      if ('${data['wing'] ?? ''}'.isNotEmpty) '${data['wing']}',
+                      if ('${data['flatNo'] ?? data['flat'] ?? ''}'.isNotEmpty)
+                        '${data['flatNo'] ?? data['flat']}',
+                    ].join('-');
+                    SosAlarm.instance.ring(
+                      messengerKey: scaffoldMessengerKey,
+                      flatLabel: flat,
+                      reason: '${data['purposeNote'] ?? data['note'] ?? ''}',
+                    );
+                  } else if (event == 'VISITOR_SOS_ACK') {
+                    // Somebody (a guard, or a family member on another handset)
+                    // has confirmed they are responding. Kill the alarm on THIS
+                    // device too: STOP is local, so without this every other
+                    // phone in the flat would keep ringing until each was picked
+                    // up and tapped individually.
+                    SosAlarm.instance.stop();
+                    final by = '${data['by'] ?? ''}'.trim();
                     scaffoldMessengerKey.currentState?.showSnackBar(
-                      const SnackBar(
-                          content: Text('SOS alert from the gate'),
-                          backgroundColor: Colors.red),
+                      SnackBar(
+                        content: Text(by.isEmpty
+                            ? 'SOS acknowledged \u2014 help is on the way.'
+                            : 'SOS acknowledged by $by \u2014 help is on the way.'),
+                      ),
                     );
                   }
                 },

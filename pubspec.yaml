@@ -19,6 +19,14 @@ dependencies:
   firebase_remote_config: ^5.0.3
   firebase_messaging: ^15.0.4
   permission_handler: ^11.3.1
+  # --- SOS alarm (lib/core/sos/sos_alarm.dart) ---
+  # Required to be audible on a silenced phone. FCM cannot do this: a
+  # notification sound plays on the NOTIFICATION audio stream, which is exactly
+  # what silent/DND mutes, and it plays once. Ringing until acknowledged means
+  # playing our own looping audio on the ALARM stream, which is what these two
+  # packages are for. Run `flutter pub get` after copying this file.
+  audioplayers: ^6.1.0
+  vibration: ^2.0.0
   flutter_animate: ^4.5.0
   google_fonts: ^6.2.1
   intl: ^0.19.0
@@ -43,6 +51,11 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/
+    # SOS alarm loop. You must drop a file at assets/audio/sos_alarm.mp3 -
+    # any loud, looping alarm tone works. If the file is missing the app still
+    # vibrates and shows the red banner (sos_alarm.dart catches and logs), so a
+    # missing asset degrades rather than breaks.
+    - assets/audio/
 
 flutter_launcher_icons:
   android: "ic_launcher"

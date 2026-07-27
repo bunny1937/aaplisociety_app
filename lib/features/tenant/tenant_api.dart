@@ -184,3 +184,34 @@ Future<Map<String, dynamic>?> fetchMyTenancy(Dio dio) async {
     return null;
   }
 }
+
+/// Reads the shared tenancy message thread (oldest first).
+///
+/// Both the owner and the tenant may read it. Older deployments only had the
+/// owner-only POST and no GET at all, so a 404 is treated as "no messages yet"
+/// rather than an error -- the thread UI must not break the whole profile page
+/// on an older backend.
+Future<List<Map<String, dynamic>>> fetchTenancyNotes(Dio dio, String requestId) async {
+  try {
+    final res = await dio.get('/tenant-requests/$requestId/notes');
+    final raw = (res.data as Map)['notes'];
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 404) return const [];
+    rethrow;
+  }
+}
+
+/// Posts a message to the tenancy thread. Either side may call this.
+///
+/// The note IS the notification: the backend pushes it to the other party, so
+/// there is no separate "notify" call to keep in sync. Sent by the tenant it
+/// reaches the flat's owners; sent by the owner it reaches the tenants.
+Future<List<Map<String, dynamic>>> postTenancyNote(
+    Dio dio, String requestId, String note) async {
+  final res = await dio.post('/tenant-requests/$requestId/notes', data: {'note': note});
+  final raw = (res.data as Map)['notes'];
+  if (raw is! List) return const [];
+  return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+}

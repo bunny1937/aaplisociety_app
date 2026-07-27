@@ -11,12 +11,21 @@ import '../member/pulse/pulse.dart';
 import 'tenant_api.dart';
 import 'tenant_ui.dart';
 
+/// Four modes, laid out as a 2x2 grid.
+///
+/// 'Online' was removed: there is no payment gateway in this app, so the only
+/// thing it ever did was record a payment with a meaningless label and then
+/// show a banner apologising for itself. Every real online transfer is already
+/// covered by UPI or BankTransfer. Removing it also makes the count even, which
+/// is what lets the grid tile cleanly two-per-row instead of reflowing 3+2.
+///
+/// Historic rows that still carry 'Online' keep rendering fine — the label map
+/// below is only consulted for display and falls back to the raw value.
 const List<String> kPaymentModes = [
   'Cash',
   'UPI',
   'BankTransfer',
   'Cheque',
-  'Online',
 ];
 
 /// Human labels — the API values are camel-case, but users should never see
@@ -26,6 +35,8 @@ const Map<String, String> kPaymentModeLabels = {
   'UPI': 'UPI',
   'BankTransfer': 'Bank transfer',
   'Cheque': 'Cheque',
+  // Kept for display only, so old records saved before 'Online' was dropped
+  // still read correctly in history.
   'Online': 'Online',
 };
 
@@ -176,28 +187,15 @@ class _RentPaymentPageState extends State<RentPaymentPage> {
                             fontWeight: FontWeight.w600,
                             color: t.fg3)),
                     const SizedBox(height: 6),
-                    // Chips rather than a dropdown: five short options are
-                    // faster to hit and always visible.
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: kPaymentModes
-                          .map((m) => _ModeChip(
-                                label: kPaymentModeLabels[m] ?? m,
-                                selected: _mode == m,
-                                onTap: () => setState(() => _mode = m),
-                              ))
-                          .toList(),
+                    // 2x2 grid instead of a Wrap. The Wrap reflowed five
+                    // variable-width chips into a ragged 3+2 that changed shape
+                    // depending on the label widths, and burned a whole row on
+                    // 'Online'. Fixed halves give every mode the same target
+                    // size and a predictable layout.
+                    _ModeGrid(
+                      selected: _mode,
+                      onSelected: (m) => setState(() => _mode = m),
                     ),
-                    if (_mode == 'Online') ...[
-                      const SizedBox(height: 12),
-                      const TenantBanner(
-                        'Online payments are recorded manually for now \u2014 '
-                        'gateway integration is coming later.',
-                        neutral: true,
-                        icon: Icons.info_outline_rounded,
-                      ),
-                    ],
                     const SizedBox(height: 16),
                     PulseButton(
                       label: 'Record payment',
@@ -310,6 +308,51 @@ class _ModeChip extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Two-per-row grid of payment modes.
+///
+/// Replaces the `Wrap` that used to lay these out. A Wrap sizes each chip to its
+/// own label, so "Bank transfer" and "UPI" got very different tap targets and
+/// the rows reflowed as soon as the text scaled up. Fixed halves keep every
+/// mode the same size and the block the same height regardless of text scale.
+///
+/// Derives its rows from [kPaymentModes] rather than hardcoding 2x2, so if a
+/// fifth mode is ever added it becomes 2+2+1 instead of silently disappearing.
+class _ModeGrid extends StatelessWidget {
+  final String? selected;
+  final ValueChanged<String> onSelected;
+  const _ModeGrid({required this.selected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var row = 0; row < kPaymentModes.length; row += 2)
+          Padding(
+            padding:
+                EdgeInsets.only(bottom: row + 2 < kPaymentModes.length ? 8 : 0),
+            child: Row(
+              children: [
+                for (var i = row;
+                    i < row + 2 && i < kPaymentModes.length;
+                    i++) ...[
+                  if (i > row) const SizedBox(width: 8),
+                  Expanded(
+                    child: _ModeChip(
+                      label: kPaymentModeLabels[kPaymentModes[i]] ??
+                          kPaymentModes[i],
+                      selected: selected == kPaymentModes[i],
+                      onTap: () => onSelected(kPaymentModes[i]),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

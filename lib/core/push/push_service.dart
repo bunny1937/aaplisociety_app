@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import '../logging/app_logger.dart';
 import '../socket/socket_bus.dart';
+import '../../features/member/member_shell.dart';
 import 'firebase_bootstrap.dart';
 
 // Runs in a separate headless isolate while the app is backgrounded/killed -
@@ -143,20 +144,105 @@ class PushService {
     });
   }
 
-  /// Navigates to the notification center when the user taps a push
-  /// notification — covers both the app-already-running case
-  /// (`onMessageOpenedApp`) and cold-start-from-tap (`getInitialMessage`).
-  /// Every notification type routes to the same destination (`/notifications`)
-  /// rather than a per-type deep link: the notification center already shows
-  /// role-appropriate content (see mobile-backend's notification.controller.ts),
-  /// so one robust destination beats a brittle type->route mapping that has
-  /// to be kept in sync with every NOTIFICATION_TYPES addition.
+  /// Opens the screen a notification is actually about when the user taps it -
+  /// both the app-already-running case (`onMessageOpenedApp`) and
+  /// cold-start-from-tap (`getInitialMessage`).
+  ///
+  /// This used to discard the payload entirely (`.listen((_) =>
+  /// router.push('/notifications'))`), so a "visitor at your gate" tap and a
+  /// "rent received" tap both dumped you on the same list and you had to find
+  /// the item again yourself.
   Future<void> listenNotificationTaps(GoRouter router) async {
     if (kIsWeb || !FirebaseBootstrap.available) return;
     await _openedAppSub?.cancel();
     _openedAppSub = FirebaseMessaging.onMessageOpenedApp
-        .listen((_) => router.push('/notifications'));
+        .listen((message) => _openTarget(router, message.data));
     final initial = await FirebaseMessaging.instance.getInitialMessage();
-    if (initial != null) router.push('/notifications');
+    if (initial != null) _openTarget(router, initial.data);
+  }
+
+  /// Routes we are willing to push from a notification tap.
+  ///
+  /// A whitelist rather than trusting `data.route`: go_router throws on an
+  /// unknown path, and a typo in a backend payload would then crash the app at
+  /// the exact moment the user taps a notification.
+  static const _pushableRoutes = <String>{
+    '/bills',
+    '/complaints',
+    '/ledger',
+    '/receipts',
+    '/rent-payments',
+    '/my-tenant',
+    '/manage-tenants',
+    '/payment-history',
+    '/tenant-history',
+    '/notifications',
+  };
+
+  /// Visitors and Notices are bottom-nav **tabs**, not routes - there is no
+  /// `/visitors` or `/notices` path to push. Matched by label because the tab
+  /// index differs by role (tenants have no Bills tab).
+  static String? _tabForType(String? type) {
+    if (type == null) return null;
+    if (type.startsWith('VISITOR') || type == 'SECURITY_ALERT') {
+      return 'Visitors';
+    }
+    if (type == 'NOTICE_POSTED') return 'Notices';
+    return null;
+  }
+
+  static String? _routeForType(String? type) {
+    switch (type) {
+      case 'BILL_GENERATED':
+        return '/bills';
+      case 'PAYMENT_RECEIVED':
+        return '/receipts';
+      case 'COMPLAINT_APPROVED':
+      case 'COMPLAINT_REJECTED':
+        return '/complaints';
+      case 'RENT_PAYMENT_SUBMITTED':
+        return '/manage-tenants';
+      case 'RENT_PAYMENT_DECISION':
+      case 'RENT_REMINDER':
+        return '/rent-payments';
+      case 'TENANT_LEASE_EXPIRED':
+        return '/my-tenant';
+      default:
+        return null;
+    }
+  }
+
+  static String _currentLocation(GoRouter router) =>
+      router.routerDelegate.currentConfiguration.uri.path;
+
+  void _openTarget(GoRouter router, Map<String, dynamic> data) {
+    try {
+      final location = _currentLocation(router);
+      // A guard on the gate screen or an admin mid-task must never be thrown
+      // into the member surface by a tap.
+      if (location.startsWith('/security') || location.startsWith('/admin')) {
+        return;
+      }
+      final type = data['type'] as String?;
+      final tab = _tabForType(type);
+      if (tab != null) {
+        memberTabRequestNotifier.value = tab;
+        // Cold start: the shell may not be mounted yet, so the notifier is
+        // drained by MemberShell on its first frame.
+        if (location != '/member') router.go('/member');
+        return;
+      }
+      final requested = (data['route'] as String?)?.trim();
+      final route = (requested != null && _pushableRoutes.contains(requested))
+          ? requested
+          : (_routeForType(type) ?? '/notifications');
+      router.push(route);
+    } catch (e, st) {
+      AppLogger.error('[push] tap routing failed', error: e, stackTrace: st);
+      // Never let a bad payload swallow the tap entirely.
+      try {
+        router.push('/notifications');
+      } catch (_) {}
+    }
   }
 }

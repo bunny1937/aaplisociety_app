@@ -17,6 +17,15 @@ import 'member_profile_page.dart';
 /// `themeModeNotifier`.
 final memberTabNotifier = ValueNotifier<int>(0);
 
+/// Request a tab **by label** ("Visitors", "Notices", ...).
+///
+/// Push taps cannot use [memberTabNotifier] directly: Visitors is index 3 for an
+/// owner but index 2 for a tenant (no Bills tab), so a hardcoded index sends
+/// every tenant to the wrong screen. Set by `PushService._openTarget`, drained
+/// (and reset to null) by [MemberShell] - including on its first frame, so a
+/// cold start from a notification tap still lands correctly.
+final memberTabRequestNotifier = ValueNotifier<String?>(null);
+
 /// Bottom-tab shell for the member surface, re-skinned to the "Pulse Mobile"
 /// design (ui_kits/member-v2 index.html TABS array + BottomNav primitive):
 /// Home / Bills / Notices / Visitors / Profile, frosted-glass bar. Ledger,
@@ -63,12 +72,34 @@ class _MemberShellState extends State<MemberShell> {
     super.initState();
     _loadPendingVisitors();
     memberTabNotifier.addListener(_onTabRequest);
+    memberTabRequestNotifier.addListener(_onTabLabelRequest);
+    // Cold start from a notification tap: the request was set before this shell
+    // existed, so there was no listener to hear it. Drain it once we are
+    // mounted and can read AuthBloc.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _onTabLabelRequest());
   }
 
   @override
   void dispose() {
     memberTabNotifier.removeListener(_onTabRequest);
+    memberTabRequestNotifier.removeListener(_onTabLabelRequest);
     super.dispose();
+  }
+
+  void _onTabLabelRequest() {
+    final label = memberTabRequestNotifier.value;
+    if (label == null || !mounted) return;
+    final authState = context.read<AuthBloc>().state;
+    final isTenant = authState is AuthAuthed &&
+        authState.claims['occupancyType'] == 'Tenant';
+    final index = _items(isTenant).indexWhere((it) => it.label == label);
+    // Consume the request either way, so a stale label cannot fire again on the
+    // next rebuild.
+    memberTabRequestNotifier.value = null;
+    if (index < 0) return;
+    memberTabNotifier.value = index;
+    if (index != _i) setState(() => _i = index);
   }
 
   void _onTabRequest() {

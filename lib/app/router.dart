@@ -22,7 +22,6 @@ import '../features/tenant/manage_tenants_page.dart';
 import '../features/member/payment_history_page.dart';
 import '../features/notifications/notification_center_page.dart';
 import '../features/member/profile/flat_details_page.dart';
-import '../features/member/profile/contact_page.dart';
 import '../features/member/profile/parking_page.dart';
 import '../features/member/profile/family_members_page.dart';
 import '../features/member/profile/emergency_contact_page.dart';
@@ -151,18 +150,14 @@ GoRouter buildRouter() => GoRouter(
                   ),
                   s);
             }),
-        GoRoute(
-            path: '/profile/contact',
-            pageBuilder: (c, s) {
-              final extra = s.extra as Map<String, dynamic>?;
-              return _fade(
-                  ContactPage(
-                    member: extra?['member'] as Map?,
-                    email: extra?['email'] as String?,
-                    canEdit: extra?['canEdit'] == true,
-                  ),
-                  s);
-            }),
+        // '/profile/contact' removed as a standalone destination. It was a whole
+        // route whose only content was the phone/email that Basic details
+        // already shows in its Contact tab, so for most users tapping it opened
+        // an empty screen.
+        //
+        // Do NOT delete lib/features/member/profile/contact_page.dart: the
+        // ContactPage widget is still embedded as the Contact tab inside
+        // basic_details_page.dart. Only the duplicate top-level route is gone.
         GoRoute(
             path: '/profile/parking',
             pageBuilder: (c, s) {

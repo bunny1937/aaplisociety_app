@@ -4,6 +4,23 @@
     <!-- image_picker (guard visitor-photo capture, security_shell.dart) -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- SOS alarm (lib/core/sos/sos_alarm.dart + the sos_channel created in
+         MainActivity.onCreate). An SOS has to be heard on a phone that is on
+         silent, which FCM alone cannot do: a notification's sound plays on the
+         NOTIFICATION stream, and that is exactly what silent/DND mutes. So we
+         play audio ourselves on the ALARM stream and buzz the device.
+         VIBRATE  - the buzz pattern for a phone in a pocket.
+         WAKE_LOCK - keep the CPU alive so the loop keeps playing with the
+                     screen off.
+         USE_FULL_SCREEN_INTENT - lets the alert surface over the lock screen
+                     instead of sitting silently in the tray. Declared here so
+                     the capability exists; on Android 14+ this is granted by
+                     the user for alarm-category apps.
+         SCHEDULE_EXACT_ALARM is deliberately NOT requested - we never schedule,
+         we only react to a live event. -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <application
         android:label="aapli_society"
         android:name="${applicationName}"

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/network/api_error.dart';
+import '../../core/network/sos_api.dart';
 import '../../core/theme/haptics.dart';
 import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/async_view.dart';
@@ -469,6 +470,75 @@ class _GateCardState extends State<_GateCard> {
         : (photoKey.isNotEmpty
             ? 'Photo is still processing \u2014 try again in a moment.'
             : 'No photo was taken at the gate for this visitor.');
+    // An SOS raised from this flat is not a visitor and must never render as
+    // one. It was showing up here with a photo slot, "Call guest", a note box
+    // and Allow/Deny buttons - asking a resident to approve their own
+    // household's emergency. Bail out to a purpose-built card before any of
+    // the visitor chrome below is built.
+    if ('${visitor['entryMethod'] ?? ''}' == 'SOS') {
+      final reason =
+          '${visitor['purposeNote'] ?? visitor['note'] ?? ''}'.trim();
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: t.dangerSoft,
+          borderRadius: BorderRadius.circular(PulseTokens.radius),
+          border: Border.all(color: t.danger, width: 1.4),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.emergency_rounded, color: t.danger, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Emergency raised for your flat',
+                      style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: t.danger)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              reason.isEmpty
+                  ? 'No reason was recorded. Security has been alerted.'
+                  : reason,
+              style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w700, color: t.fg1),
+            ),
+            const SizedBox(height: 2),
+            Text('Security and the society admin were notified automatically.',
+                style: TextStyle(fontSize: 11.5, color: t.fg3)),
+            const SizedBox(height: 12),
+            PulseButton(
+              label: 'Call the gate now',
+              icon: Icons.support_agent_rounded,
+              variant: PulseBtnVariant.danger,
+              full: true,
+              onTap: () {
+                if (guardPhone.isNotEmpty) {
+                  _call(guardPhone);
+                } else {
+                  showAppToast(context,
+                      'No guard number on this alert. Call the gate from the '
+                      'society directory.',
+                      kind: AppToastKind.alert);
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+            _SosSafeButton(
+              visitorId: '${visitor['_id']}',
+              acknowledged: (visitor['sosAck'] as Map?)?['at'] != null,
+            ),
+          ],
+        ),
+      );
+    }
     return PulseCard(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -478,24 +548,29 @@ class _GateCardState extends State<_GateCard> {
             children: [
               // Guest photo shared by the guard (tap to enlarge); falls back to
               // a person glyph when no photo was attached.
+              // 44px was avatar-sized: you could not tell who was at your gate
+              // without tapping through to the full-screen view, which is the
+              // one thing this card exists to answer. 72px shows a recognisable
+              // face at a glance and still leaves room for the name and the
+              // quick-call button on the same row.
               GestureDetector(
                 onTap: photoUrl.isNotEmpty ? () => _openPhoto(photoUrl) : null,
                 child: Container(
-                  width: 44,
-                  height: 44,
+                  width: 72,
+                  height: 72,
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                       color: t.warningSoft,
-                      borderRadius: BorderRadius.circular(11)),
+                      borderRadius: BorderRadius.circular(14)),
                   child: photoUrl.isNotEmpty
                       ? Image.network(photoUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Icon(
                               Icons.broken_image_outlined,
                               color: t.danger,
-                              size: 19))
+                              size: 26))
                       : Icon(Icons.no_photography_outlined,
-                          color: t.danger, size: 19),
+                          color: t.danger, size: 26),
                 ),
               ),
               const SizedBox(width: 10),
@@ -532,39 +607,51 @@ class _GateCardState extends State<_GateCard> {
             ],
           ),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Text(
+              guardName.isNotEmpty
+                  ? 'Logged by $guardName · $gateLabel'
+                  : gateLabel,
+              style: TextStyle(
+                  fontSize: 11.5, color: t.fg3, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          // The two calls sit side by side as equal halves instead of being
+          // dropped into a Wrap with the "Logged by" caption. In the Wrap they
+          // reflowed unpredictably - sometimes both on the caption's line,
+          // sometimes stacked - and being ghost-styled they read as text, not
+          // buttons. The gate is always the left/primary target.
+          Row(
             children: [
-              Text(
-                  guardName.isNotEmpty
-                      ? 'Logged by $guardName · $gateLabel'
-                      : gateLabel,
-                  style: TextStyle(
-                      fontSize: 11.5, color: t.fg3, fontWeight: FontWeight.w600)),
-              PulseButton(
-                label: 'Call guard',
-                size: PulseBtnSize.sm,
-                variant: PulseBtnVariant.ghost,
-                onTap: () {
-                  if (guardPhone.isNotEmpty) {
-                    _call(guardPhone);
-                  } else {
-                    showAppToast(context,
-                        'No guard number on this entry. Call the gate from '
-                        'the society directory instead.',
-                        kind: AppToastKind.alert);
-                  }
-                },
+              Expanded(
+                child: PulseButton(
+                  label: 'Call guard',
+                  icon: Icons.support_agent_rounded,
+                  size: PulseBtnSize.sm,
+                  variant: PulseBtnVariant.secondary,
+                  onTap: () {
+                    if (guardPhone.isNotEmpty) {
+                      _call(guardPhone);
+                    } else {
+                      showAppToast(context,
+                          'No guard number on this entry. Call the gate from '
+                          'the society directory instead.',
+                          kind: AppToastKind.alert);
+                    }
+                  },
+                ),
               ),
-              if (guestPhone.isNotEmpty)
-                PulseButton(
+              const SizedBox(width: 8),
+              Expanded(
+                child: PulseButton(
                   label: 'Call guest',
+                  icon: Icons.call_rounded,
                   size: PulseBtnSize.sm,
                   variant: PulseBtnVariant.ghost,
+                  // Kept in place but disabled when there is no number, so the
+                  // row never changes shape between visitors.
+                  disabled: guestPhone.isEmpty,
                   onTap: () => _call(guestPhone),
                 ),
+              ),
             ],
           ),
           // Photo diagnostics — deliberately shown in the UI while in dev so
@@ -758,6 +845,75 @@ class _PassRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "We are safe" on a resident's own SOS card.
+///
+/// Same endpoint the guard's Acknowledge uses. It matters here because the alarm
+/// rings on EVERY handset in the flat: whoever gets to their phone first can
+/// call off the other three, instead of each person hunting down their own STOP
+/// button. Acknowledging also tells the gate the situation is handled, which is
+/// what stops the escalation ladder.
+class _SosSafeButton extends StatefulWidget {
+  const _SosSafeButton({required this.visitorId, required this.acknowledged});
+
+  final String visitorId;
+  final bool acknowledged;
+
+  @override
+  State<_SosSafeButton> createState() => _SosSafeButtonState();
+}
+
+class _SosSafeButtonState extends State<_SosSafeButton> {
+  bool _busy = false;
+  bool _done = false;
+
+  Future<void> _ack() async {
+    Haptics.medium();
+    setState(() => _busy = true);
+    try {
+      await acknowledgeSos(context.read<Dio>(), widget.visitorId);
+      if (!mounted) return;
+      setState(() {
+        _done = true;
+        _busy = false;
+      });
+      showAppToast(context, 'Marked as handled \u2014 alarms silenced.',
+          kind: AppToastKind.success);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      showAppToast(context, apiErrorMessage(e), kind: AppToastKind.alert);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.pulse;
+    if (widget.acknowledged || _done) {
+      return Row(
+        children: [
+          Icon(Icons.verified_rounded, size: 16, color: t.success),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text('Marked as handled \u2014 alarms have been silenced.',
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: t.success)),
+          ),
+        ],
+      );
+    }
+    return PulseButton(
+      label: 'We are safe \u2014 silence the alarm',
+      icon: Icons.volume_off_rounded,
+      variant: PulseBtnVariant.secondary,
+      full: true,
+      size: PulseBtnSize.sm,
+      loading: _busy,
+      disabled: _busy,
+      onTap: _ack,
     );
   }
 }

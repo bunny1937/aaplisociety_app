@@ -45,3 +45,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+MEMBER_V2_DESIGN_PORT.md                                   
+MEMBER_V2_GAPS.md                                          
+NEEDSFIXmd.md                                                
+replay_pid29372.log                                        
+repomix-output.xml                                         
+SECURITY_COMPLIANCE_RELEASE_AUDIT.md                       
+society_app.md                                             
+society_app_mono.md                                        
+society_web_mono.md     
