@@ -5,10 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/network/api_error.dart';
-import '../../core/network/sos_api.dart';
 import '../../core/socket/socket_bus.dart';
 import '../../core/storage/offline_outbox.dart';
 import '../../core/theme/haptics.dart';
+import '../../core/utils/image_compress.dart';
 import '../../core/utils/time_ago.dart';
 import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/async_view.dart';
@@ -170,8 +170,16 @@ class _GateTabState extends State<GateTab> {
     if (picked == null || !mounted) return;
     Haptics.medium();
     try {
-      final form =
-          FormData.fromMap({'file': await MultipartFile.fromFile(picked.path)});
+      // Re-encode before upload. image_picker's maxWidth/imageQuality are
+      // best-effort and high-megapixel OEM cameras still hand back multi-MB
+      // JPEGs - which is how a gate photo that only ever renders at 72px and
+      // fullscreen ended up costing ~1 MB of R2 storage (and of the guard's
+      // mobile data) per visitor. new_entry_tab.dart already compressed on its
+      // upload path; this one did not, so it was the actual leak.
+      final compressed = await compressForUpload(File(picked.path));
+      final form = FormData.fromMap({
+        'file': MultipartFile.fromBytes(compressed, filename: '$visitorId.jpg'),
+      });
       await dio.post('/visitors/$visitorId/upload-photo', data: form);
       if (!mounted) return;
       Haptics.success();
@@ -419,13 +427,6 @@ class _GateTabState extends State<GateTab> {
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                           color: t.danger)),
-                const SizedBox(height: 8),
-                _SosAckButton(
-                  dio: dio,
-                  visitorId: '${v['_id']}',
-                  ack: v['sosAck'] as Map?,
-                  onDone: () => _listKey.currentState?.reload(),
-                ),
               ],
             ),
           );
@@ -667,90 +668,6 @@ class _GateSkeleton extends StatelessWidget {
         SizedBox(height: 12),
         PulseSkeleton(height: 96),
       ],
-    );
-  }
-}
-
-/// Acknowledge control on a guard's SOS card.
-///
-/// "Acknowledge" is not the same as STOP. STOP on a ringing phone silences that
-/// phone. Acknowledge tells the backend a human is responding, which pushes
-/// `VISITOR_SOS_ACK` to every device on the affected flat and silences all of
-/// them -- and it is the only reassurance the resident gets that their alert was
-/// actually seen by the gate rather than screaming into the void.
-///
-/// Kept as its own StatefulWidget because the SOS card is built inside a
-/// `.map()` over the list: there is nowhere in that closure to hold per-row
-/// busy state, and a shared flag would spin every card at once.
-class _SosAckButton extends StatefulWidget {
-  const _SosAckButton({
-    required this.dio,
-    required this.visitorId,
-    required this.ack,
-    required this.onDone,
-  });
-
-  final Dio dio;
-  final String visitorId;
-
-  /// `sosAck` from the visitor row: null or missing `at` means not yet handled.
-  final Map? ack;
-  final VoidCallback onDone;
-
-  @override
-  State<_SosAckButton> createState() => _SosAckButtonState();
-}
-
-class _SosAckButtonState extends State<_SosAckButton> {
-  bool _busy = false;
-
-  Future<void> _ack() async {
-    Haptics.medium();
-    setState(() => _busy = true);
-    try {
-      await acknowledgeSos(widget.dio, widget.visitorId);
-      if (!mounted) return;
-      showAppToast(context, 'Acknowledged \u2014 the flat knows help is coming.',
-          kind: AppToastKind.success);
-      widget.onDone();
-    } catch (e) {
-      if (!mounted) return;
-      showAppToast(context, apiErrorMessage(e), kind: AppToastKind.alert);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.pulse;
-    final at = widget.ack?['at'];
-    if (at != null) {
-      final who = '${widget.ack?['byName'] ?? widget.ack?['byRole'] ?? ''}'.trim();
-      return Row(
-        children: [
-          Icon(Icons.verified_rounded, size: 16, color: t.success),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              who.isEmpty
-                  ? 'Acknowledged \u2014 someone is responding.'
-                  : 'Acknowledged by $who.',
-              style: TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w700, color: t.success),
-            ),
-          ),
-        ],
-      );
-    }
-    return PulseButton(
-      label: 'Acknowledge \u2014 on our way',
-      icon: Icons.shield_rounded,
-      variant: PulseBtnVariant.secondary,
-      full: true,
-      loading: _busy,
-      disabled: _busy,
-      onTap: _ack,
     );
   }
 }
