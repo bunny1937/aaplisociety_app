@@ -102,6 +102,15 @@ class _BillsPageState extends State<BillsPage> {
             return m >= 3 ? y : y - 1;
           }
 
+          // The running balance only lives on the member's newest bill — every
+          // older bill's own `balanceDue` was already carried forward into a
+          // later bill's `previousBalance` once that later bill was generated.
+          // Paying an older bill directly would pay against a stale figure, so
+          // only the newest bill (by billYear/billMonth — `allBills` is sorted
+          // newest-first above) is ever payable; every other bill is a
+          // read-only historical record.
+          final latestBillId =
+              allBills.isNotEmpty ? (allBills.first as Map)['_id'] : null;
           final availableFys =
               allBills.map((raw) => fyOf(raw as Map)).toSet().toList()..sort();
           final now = DateTime.now();
@@ -116,16 +125,24 @@ class _BillsPageState extends State<BillsPage> {
           final fyLabel = 'FY ${fyStartYear % 100}-${(fyStartYear + 1) % 100}';
           final fyBills =
               allBills.where((raw) => fyOf(raw as Map) == fyStartYear).toList();
-          num outstanding = 0, totalPaid = 0;
+          // Outstanding = the newest bill's own balance only. Every older
+          // bill's unpaid remainder is already folded into a later bill's
+          // `previousBalance`, so summing every non-Paid bill's balance here
+          // would count the same rolling arrears two, three, four times over
+          // as it compounds month to month.
+          num outstanding = 0;
+          if (allBills.isNotEmpty) {
+            final latest = allBills.first as Map;
+            final latestAmount = (latest['totalAmount'] as num?) ?? 0;
+            final latestPaid = (latest['amountPaid'] as num?) ?? 0;
+            outstanding = (latestAmount - latestPaid).clamp(0, double.infinity);
+          }
+          num totalPaid = 0;
           final counts = <String, int>{'Overdue': 0, 'Partial': 0, 'Paid': 0};
           for (final raw in fyBills) {
             final b = raw as Map;
-            final amount = (b['totalAmount'] as num?) ?? 0;
-            final paid = (b['amountPaid'] as num?) ?? 0;
-            if (b['status'] != 'Paid') {
-              outstanding += (amount - paid);
-            } else {
-              totalPaid += paid;
+            if (b['status'] == 'Paid') {
+              totalPaid += (b['amountPaid'] as num?) ?? 0;
             }
             final st = effectiveStatus(b);
             if (counts.containsKey(st)) counts[st] = counts[st]! + 1;
@@ -254,9 +271,12 @@ class _BillsPageState extends State<BillsPage> {
                         delegate: SliverChildBuilderDelegate(
                           (context, i) => _BillThumbCard(
                             bill: bills[i] as Map,
+                            isLatest: (bills[i] as Map)['_id'] == latestBillId,
                             onTap: () async {
                               final changed = await showBillDetailSheet(
-                                  context, bills[i] as Map);
+                                  context, bills[i] as Map,
+                                  isLatestBill:
+                                      (bills[i] as Map)['_id'] == latestBillId);
                               if (changed == true) _reload();
                             },
                           ),
@@ -329,8 +349,10 @@ class _AccentStat extends StatelessWidget {
 
 class _BillThumbCard extends StatelessWidget {
   final Map bill;
+  final bool isLatest;
   final VoidCallback onTap;
-  const _BillThumbCard({required this.bill, required this.onTap});
+  const _BillThumbCard(
+      {required this.bill, required this.isLatest, required this.onTap});
   @override
   Widget build(BuildContext context) {
     final t = context.pulse;
@@ -338,14 +360,24 @@ class _BillThumbCard extends StatelessWidget {
     final amount = (bill['totalAmount'] as num?) ?? 0;
     final paid = (bill['amountPaid'] as num?) ?? 0;
     final balance = amount - paid;
+    // A bill with money still owed is only actually payable if it's the
+    // member's newest bill — anything older already rolled its balance into
+    // a later bill's carried-forward figure.
+    final payableHere = balance > 0 && isLatest;
+    final carriedForward = balance > 0 && !isLatest;
     final due = DateTime.tryParse('${bill['dueDate']}');
-    final overdue = status == 'Overdue';
+    final overdue = status == 'Overdue' && isLatest;
     final overdueDays =
         overdue && due != null ? DateTime.now().difference(due).inDays : 0;
+    // "Partial" reads as an alarm next to Overdue/Unpaid's red — soften it to
+    // "Paid (Partial)" in a neutral tone once the balance has moved off this
+    // bill, since there's genuinely nothing actionable left to do here.
+    final statusLabel =
+        status == 'Partial' ? 'Paid (Partial)' : status;
     final tone = switch (status) {
       'Paid' => PulseTone.paid,
-      'Partial' => PulseTone.partial,
-      'Overdue' => PulseTone.overdue,
+      'Partial' => carriedForward ? PulseTone.neutral : PulseTone.partial,
+      'Overdue' => overdue ? PulseTone.overdue : PulseTone.neutral,
       _ => PulseTone.unpaid
     };
     return GestureDetector(
@@ -386,12 +418,20 @@ class _BillThumbCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   // The BIG number is what the resident actually has to pay
                   // right now. The gross bill amount is the small second line.
-                  Text(inr(balance > 0 ? balance : 0),
+                  // For a superseded bill this shows the original bill total,
+                  // not its stale balance — the real payable figure now lives
+                  // on the newest bill only.
+                  Text(inr(payableHere ? balance : (carriedForward ? amount : 0)),
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 19,
                           fontWeight: FontWeight.w800)),
-                  Text(balance > 0 ? 'Payable now' : 'Nothing payable',
+                  Text(
+                      payableHere
+                          ? 'Payable now'
+                          : (carriedForward
+                              ? 'Carried into a later bill'
+                              : 'Nothing payable'),
                       style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 9.5,
@@ -414,25 +454,27 @@ class _BillThumbCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PulsePill(label: status, tone: tone, small: true),
+                    PulsePill(label: statusLabel, tone: tone, small: true),
                     const SizedBox(height: 8),
                     Text(
                       overdue
                           ? '⚠ ${overdueDays}d overdue'
-                          : (balance > 0
+                          : (payableHere
                               ? (due != null
                                   ? 'Due ${due.day}/${due.month}/${due.year}'
                                   : 'Balance ${inr(balance)}')
-                              : 'Paid in full'),
+                              : (carriedForward
+                                  ? 'Settled here — balance moved to a later bill'
+                                  : 'Paid in full')),
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: overdue ? FontWeight.w800 : FontWeight.w600,
                         color: overdue
                             ? t.danger
-                            : (balance > 0 ? t.fg3 : t.success),
+                            : (payableHere ? t.fg3 : t.success),
                       ),
                     ),
-                    if (balance > 0) ...[
+                    if (payableHere) ...[
                       const SizedBox(height: 4),
                       Text('Balance ${inr(balance)}',
                           style: TextStyle(

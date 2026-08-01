@@ -15,17 +15,24 @@ import 'payment_sheet.dart';
 /// sheet, "Pay" → Make Payment sheet chained on top, Save/Share row.
 /// Returns `true` via Navigator.pop if a payment was made, so the bills list
 /// knows to reload.
-Future<bool?> showBillDetailSheet(BuildContext context, Map bill) {
+Future<bool?> showBillDetailSheet(BuildContext context, Map bill,
+    {bool isLatestBill = true}) {
   return showPulseSheet<bool>(
     context,
     title: billTitle(bill),
-    builder: (context) => _BillDetailBody(bill: bill),
+    builder: (context) =>
+        _BillDetailBody(bill: bill, isLatestBill: isLatestBill),
   );
 }
 
 class _BillDetailBody extends StatefulWidget {
   final Map bill;
-  const _BillDetailBody({required this.bill});
+  // A bill with money still owed is only payable if it's the member's newest
+  // bill — every older bill's balance was already carried forward into a
+  // later bill's `previousBalance` once that later bill was generated, so
+  // paying it directly here would pay against a stale figure.
+  final bool isLatestBill;
+  const _BillDetailBody({required this.bill, required this.isLatestBill});
   @override
   State<_BillDetailBody> createState() => _BillDetailBodyState();
 }
@@ -102,6 +109,12 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
     final paidAmt = (bill['amountPaid'] as num?) ?? 0;
     final balance = amount - paidAmt;
     final settled = _paid || status == 'Paid';
+    // Payable only when this is the member's newest bill — an older bill's
+    // balance was already carried forward into a later bill once that later
+    // bill was generated, so there's nothing to pay here anymore even though
+    // this bill's own stored balance is still > 0.
+    final payable = !settled && widget.isLatestBill;
+    final closed = !settled && !widget.isLatestBill;
     final charges = (bill['charges'] as Map?)?.cast<String, dynamic>();
     final previousBalance = (bill['previousBalance'] as num?) ?? 0;
     final interest = (bill['currentInterest'] as num?) ??
@@ -125,10 +138,16 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
     final oldInterest = openingInterest ?? 0;
     final tone = switch (status) {
       'Paid' => PulseTone.paid,
-      'Partial' => PulseTone.partial,
-      'Overdue' => PulseTone.overdue,
+      // A closed (superseded) Partial bill has nothing actionable left — soften
+      // it to a neutral tone instead of the same warning-yellow an actually
+      // payable Partial bill gets.
+      'Partial' => closed ? PulseTone.neutral : PulseTone.partial,
+      'Overdue' => closed ? PulseTone.neutral : PulseTone.overdue,
       _ => PulseTone.unpaid
     };
+    final statusLabel = settled
+        ? 'Paid'
+        : (status == 'Partial' ? 'Paid (Partial)' : status);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -140,7 +159,7 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
                 style: TextStyle(
                     fontSize: 12, color: t.fg4, fontWeight: FontWeight.w600)),
             PulsePill(
-                label: settled ? 'Paid' : status,
+                label: statusLabel,
                 tone: settled ? PulseTone.paid : tone),
           ],
         ),
@@ -261,11 +280,13 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
                   child: _SummaryChip(
                       label: 'Balance',
                       value: settled ? 0 : balance,
-                      color: settled ? t.success : t.danger)),
+                      color: settled
+                          ? t.success
+                          : (closed ? t.fg3 : t.danger))),
             ],
           ),
           const SizedBox(height: 18),
-          if (!settled)
+          if (payable)
             PulseButton(
               label: 'Pay ${inr(balance)}',
               full: true,
@@ -277,6 +298,30 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
                   Navigator.of(context).pop(true);
                 }
               },
+            )
+          else if (closed)
+            // This bill's own balance already rolled into a later bill's
+            // carried-forward figure — nothing to pay from here anymore.
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: t.surface3,
+                  borderRadius: BorderRadius.circular(14)),
+              child: Column(
+                children: [
+                  Text('This bill is closed',
+                      style: TextStyle(
+                          color: t.fg2,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13.5)),
+                  const SizedBox(height: 4),
+                  Text(
+                      'Its remaining balance was carried into a later bill — pay from your latest bill instead',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: t.fg4, fontSize: 11.5)),
+                ],
+              ),
             )
           else if (_ownReceipt != null)
             // The bill itself is Paid AND has a real receipt on file - show it
