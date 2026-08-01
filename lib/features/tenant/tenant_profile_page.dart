@@ -364,7 +364,8 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
               _OwnerCard(
                 name: displayName(tenancy?['ownerName'] ?? member['name'],
                     fallback: 'Your flat owner'),
-                phone: (tenancy?['ownerPhone'] ?? member['phone'])?.toString() ??
+                phone: (tenancy?['ownerPhone'] ?? member['contactNumber'])
+                        ?.toString() ??
                     '',
                 flatLabel: flatLabel,
                 // Needed for the shared message thread. Null on an older
@@ -402,23 +403,16 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
                   PulseRow(
                     icon: Icons.person_outline_rounded,
                     label: 'Personal details',
-                    // THIS is why the tenant's personal details screen was
-                    // blank. `/profile/basic-details` reads everything it shows
-                    // out of `state.extra` (see router.dart) and this call
-                    // passed no extra at all, so member/flat/email/parking/
-                    // family all arrived null and every tab rendered empty.
-                    // The owner side already passed them; the tenant side never
-                    // did.
-                    onTap: () => context.push('/profile/basic-details', extra: {
+                    // Tenants get their OWN details (currentTenant.*), not the
+                    // flat owner's — `/profile/basic-details` always shows the
+                    // owner's Member record regardless of who's logged in.
+                    // TenantDetailsPage reads member['currentTenant'] instead.
+                    onTap: () => context.push('/profile/tenant-details', extra: {
+                      'user': user,
                       'member': member,
                       'flatNo': flatNo,
                       'wing': wing,
                       'email': user['email'],
-                      // Read-only for tenants: `member` is the flat's
-                      // registered member record (the owner's), so an editable
-                      // form here would let a tenant rewrite the landlord's
-                      // details.
-                      'canEdit': false,
                       'parkingSlots':
                           (member['parkingSlots'] as List?)?.cast<Map>() ??
                               const <Map>[],

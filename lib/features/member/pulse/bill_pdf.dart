@@ -1,7 +1,33 @@
 import 'dart:typed_data';
+import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+
+/// Fetches the actual backend-rendered bill (same PDF/template the website's
+/// "view bills" page shows) via GET /bills/download?id=<billId>. Returns null
+/// if the bill has no id, the request fails, or the backend responds with
+/// something other than a real PDF (e.g. an HTML-template society) — callers
+/// should fall back to [renderBillPdf] in that case rather than showing
+/// nothing.
+Future<Uint8List?> fetchServerBillPdf(Dio dio, Map bill) async {
+  final id = bill['_id'] ?? bill['id'];
+  if (id == null) return null;
+  try {
+    final res = await dio.get<List<int>>(
+      '/bills/download',
+      queryParameters: {'id': '$id'},
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final contentType = res.headers.value('content-type') ?? '';
+    if (!contentType.contains('application/pdf')) return null;
+    final data = res.data;
+    if (data == null || data.isEmpty) return null;
+    return Uint8List.fromList(data);
+  } catch (_) {
+    return null;
+  }
+}
 
 final _inrFormat =
     NumberFormat.currency(locale: 'en_IN', symbol: 'Rs. ', decimalDigits: 2);

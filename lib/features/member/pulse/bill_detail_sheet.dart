@@ -367,7 +367,8 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
                   icon: Icons.download_outlined,
                   variant: PulseBtnVariant.ghost,
                   onTap: () async {
-                    final bytes =
+                    final dio = context.read<Dio>();
+                    final bytes = await fetchServerBillPdf(dio, bill) ??
                         await renderBillPdf(bill, societyName: societyName);
                     await Printing.layoutPdf(
                         onLayout: (_) async => bytes,
@@ -382,7 +383,8 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
                   icon: Icons.ios_share_rounded,
                   variant: PulseBtnVariant.ghost,
                   onTap: () async {
-                    final bytes =
+                    final dio = context.read<Dio>();
+                    final bytes = await fetchServerBillPdf(dio, bill) ??
                         await renderBillPdf(bill, societyName: societyName);
                     await Printing.sharePdf(
                         bytes: bytes, filename: '${billTitle(bill)}.pdf');
