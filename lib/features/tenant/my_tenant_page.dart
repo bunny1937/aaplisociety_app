@@ -9,8 +9,10 @@ import '../../core/widgets/async_view.dart';
 import '../../core/widgets/hold_to_confirm.dart';
 import '../../core/widgets/pulse_scaffold.dart';
 import '../member/pulse/pulse.dart';
+import 'tenancy_thread_sheet.dart';
 import 'tenant_api.dart';
 import 'tenant_detail_sheet.dart';
+import 'tenant_documents_sheet.dart';
 import 'tenant_ui.dart';
 
 /// Owner's "My Tenant" hub.
@@ -30,6 +32,58 @@ class MyTenantPage extends StatefulWidget {
 class _MyTenantPageState extends State<MyTenantPage> {
   final _viewKey = GlobalKey<AsyncViewState<Map<String, dynamic>>>();
   bool _busy = false;
+
+  /// Optimistic value for the login switch.
+  ///
+  /// The old flow toasted "Tenant login enabled" and then refetched, and the
+  /// refetch came back with the flag stripped, so the switch flicked straight
+  /// back to grey/off. Holding the confirmed server value here means the switch
+  /// agrees with the toast immediately and stays that way through the reload.
+  bool? _loginOverride;
+
+  /// Opens the real document review sheet.
+  ///
+  /// This is what "missing documents" should always have done. It used to push
+  /// `/manage-tenants`, which is the ADD-a-tenant screen - nowhere near the
+  /// documents, and a confusing place to land when all you wanted was to look
+  /// at a lease your tenant already uploaded.
+  Future<void> _openDocuments(Map tenancy) async {
+    final changed = await showTenantDocumentsSheet(
+      context,
+      tenancy: tenancy,
+      asOwner: true,
+    );
+    if (changed && mounted) await _viewKey.currentState?.reload();
+  }
+
+  Future<void> _toggleLogin(Map tenancy, bool on) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final res = await updateTenantLogin(
+          context.read<Dio>(), '${tenancy['_id']}', on);
+      if (!mounted) return;
+      final confirmed = res['loginEnabled'];
+      setState(() {
+        // Trust the server's echo over our own optimism when it sends one.
+        _loginOverride = confirmed is bool ? confirmed : on;
+        _busy = false;
+      });
+      showAppToast(
+        context,
+        '${res['message'] ?? (on ? 'Tenant login enabled' : 'Tenant login disabled')}',
+        kind: AppToastKind.success,
+      );
+      await _viewKey.currentState?.reload();
+    } catch (err) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _loginOverride = null;
+      });
+      showAppToast(context, apiErrorMessage(err), kind: AppToastKind.alert);
+    }
+  }
 
   Future<Map<String, dynamic>> _load() async {
     final dio = context.read<Dio>();
@@ -156,12 +210,13 @@ class _MyTenantPageState extends State<MyTenantPage> {
                   tenancy: tenancy,
                   active: true,
                   loginBusy: _busy,
+                  loginOverride: _loginOverride,
                   onOpenDetail: () => showTenantDetailSheet(
                     context,
                     tenancy: tenancy,
                     kind: TenantDetailKind.active,
                   ),
-                  onFixDocs: () => context.push('/manage-tenants'),
+                  onFixDocs: () => _openDocuments(tenancy),
                   onRemind: () => _run(
                     () => sendRentReminder(
                       context.read<Dio>(),
@@ -191,29 +246,19 @@ class _MyTenantPageState extends State<MyTenantPage> {
                       'Lease date change sent for approval',
                     );
                   },
-                  onNote: () async {
-                    final note = await showPromptSheet(
-                      context,
-                      title: 'Add a note',
-                      label: 'Visible to you and the society admin',
-                      hint:
-                          'e.g. Asked tenant about parking sticker renewal',
-                      multiline: true,
-                    );
-                    if (note == null) return;
-                    await _run(
-                      () => addTenantNote(
-                              context.read<Dio>(), '${tenancy['_id']}', note)
-                          .then((_) {}),
-                      'Note added',
-                    );
-                  },
-                  onToggleLogin: (on) => _run(
-                    () => updateTenantLogin(
-                            context.read<Dio>(), '${tenancy['_id']}', on)
-                        .then((_) {}),
-                    on ? 'Tenant login enabled' : 'Tenant login disabled',
+                  // Was a one-shot "Add a note" prompt that posted the text and
+                  // discarded the response, so the owner could write but never
+                  // READ - including the note their tenant sent them, which
+                  // they got a push notification about. Now it opens the actual
+                  // two-way thread.
+                  onNote: () => showTenancyThreadSheet(
+                    context,
+                    requestId: '${tenancy['_id']}',
+                    title:
+                        'Messages with ${displayName(tenancy['tenantName'], fallback: 'your tenant')}',
+                    mineIsTenant: false,
                   ),
+                  onToggleLogin: (on) => _toggleLogin(tenancy, on),
                   onEndLease: () => _confirmEndLease(tenancy),
                 )
               else

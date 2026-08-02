@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/session/session_role.dart';
 import '../../core/socket/socket_bus.dart';
 
 /// Notification history: GET /notifications + mark-read / mark-all-read.
@@ -64,6 +66,42 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
     await _load();
   }
 
+  /// Routes a notification row to the screen it is actually about.
+  ///
+  /// Rows used to do nothing but mark themselves read, so a rent reminder in
+  /// this list was a dead end. Role matters: `/receipts` and `/rent-payments`
+  /// are the OWNER's surfaces, and sending a tenant there is what produced a
+  /// receipt for money the owner had paid. Mirrors PushService._routeForType.
+  String? _targetFor(Map n) {
+    final isTenant = isTenantNotifier.value;
+    switch ('${n['type'] ?? ''}') {
+      case 'BILL_GENERATED':
+        return isTenant ? null : '/bills';
+      case 'PAYMENT_RECEIVED':
+        return isTenant ? '/tenant-profile' : '/receipts';
+      case 'COMPLAINT_APPROVED':
+      case 'COMPLAINT_REJECTED':
+        return '/complaints';
+      case 'RENT_PAYMENT_SUBMITTED':
+        return isTenant ? '/tenant-profile' : '/manage-tenants';
+      case 'RENT_REMINDER':
+      case 'RENT_PAYMENT_DECISION':
+        return isTenant ? '/tenant-profile' : '/rent-payments';
+      case 'TENANT_LEASE_EXPIRED':
+        return isTenant ? '/tenant-profile' : '/my-tenant';
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _openRow(Map n) async {
+    final read = n['read'] == true;
+    if (!read) await _markRead('${n['_id']}');
+    if (!mounted) return;
+    final target = _targetFor(n);
+    if (target != null) context.push(target);
+  }
+
   @override
   Widget build(BuildContext context) {
     final unreadCount = _items.where((n) => (n as Map)['read'] != true).length;
@@ -125,8 +163,9 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
                                           Icons.check_circle_outline),
                                       onPressed: () =>
                                           _markRead('${n['_id']}')),
-                              onTap:
-                                  read ? null : () => _markRead('${n['_id']}'),
+                              // Always tappable now: even an already-read row
+                              // should still take you to what it is about.
+                              onTap: () => _openRow(n),
                             ),
                           );
                         },

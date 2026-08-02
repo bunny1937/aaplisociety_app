@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/session/session_role.dart';
 import '../../core/theme/haptics.dart';
 import '../auth/bloc/auth_bloc.dart';
 import 'pulse/pulse_tokens.dart';
@@ -126,6 +127,12 @@ class _MemberShellState extends State<MemberShell> {
     final authState = context.watch<AuthBloc>().state;
     final isTenant = authState is AuthAuthed &&
         authState.claims['occupancyType'] == 'Tenant';
+    // Publish the role for code that has no BuildContext - specifically the
+    // push notification router, which was sending tenants to owner-only screens
+    // (a rent reminder opened the OWNER's maintenance receipts) because it had
+    // no idea who was holding the phone.
+    publishIsTenant(isTenant);
+
     final pages = _pages(isTenant);
     final items = _items(isTenant);
     if (_i >= pages.length) _i = 0;

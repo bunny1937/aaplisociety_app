@@ -12,6 +12,7 @@ import 'pulse/member_display.dart';
 import 'member_shell.dart';
 import 'bills_page.dart' show effectiveStatus, billTitle, inr;
 import 'notices_page.dart' show showNoticesSheet;
+import '../notifications/recent_notifications_popover.dart';
 
 class _DashData {
   final List bills;
@@ -22,8 +23,15 @@ class _DashData {
   /// Rent payments for the logged-in flat. Tenants see their rent ledger here
   /// instead of the owner's maintenance bill, so the dashboard needs it too.
   final List rents;
+
+  /// Personal notifications. Distinct from `notices`: a notice is a society-wide
+  /// announcement, a notification is something that happened to YOU (rent
+  /// reminder, visitor at the gate, payment confirmed). The bell badge was
+  /// counting urgent NOTICES, which is why a rent reminder never made it blink.
+  final List notifications;
+
   const _DashData(this.bills, this.visitors, this.complaints, this.notices,
-      this.rents);
+      this.rents, this.notifications);
 }
 
 /// Home tab — port of ui_kits/member-v2 `MemberV2ScreensDashboard.jsx`
@@ -77,12 +85,24 @@ class _DashboardPageState extends State<DashboardPage> {
     } catch (_) {
       rents = const [];
     }
+    // Same tolerance as rents: the bell should degrade to "no badge" rather
+    // than take the whole dashboard down with it.
+    List notifications = const [];
+    try {
+      final res = await dio.get('/notifications');
+      final body = res.data;
+      notifications =
+          (body is Map ? body['notifications'] : body) as List? ?? const [];
+    } catch (_) {
+      notifications = const [];
+    }
     return _DashData(
       results[0].data['bills'] as List,
       results[1].data['visitors'] as List,
       results[2].data['complaints'] as List,
       results[3].data['notices'] as List,
       rents,
+      notifications,
     );
   }
 
@@ -153,6 +173,9 @@ class _DashboardPageState extends State<DashboardPage> {
             final p = (n as Map)['priority'];
             return p == 'urgent' || p == 'high';
           }).length;
+          // The bell badge now counts UNREAD NOTIFICATIONS, not urgent notices.
+          final unreadNotifications =
+              data.notifications.where((n) => (n as Map)['read'] != true).length;
           final sortedNotices = [...data.notices]..sort((a, b) {
               final da = DateTime.tryParse('${(a as Map)['createdAt']}') ??
                   DateTime(2000);
@@ -206,11 +229,18 @@ class _DashboardPageState extends State<DashboardPage> {
                         ],
                       ),
                     ),
+                    // The bell used to open the NOTICES sheet, which is a
+                    // different feature entirely: notices are society-wide
+                    // announcements, notifications are things that happened to
+                    // YOU. That is why a rent reminder had nowhere to appear on
+                    // the home screen. It now floats the three most recent
+                    // notifications inline - no page transition - with a link
+                    // through to the full list.
                     PulseIconButton(
                       icon: Icons.notifications_outlined,
-                      badge: urgentNotices,
-                      onTap: () =>
-                          showNoticesSheet(context, context.read<Dio>()),
+                      badge: unreadNotifications,
+                      onTap: () => showRecentNotificationsPopover(
+                          context, context.read<Dio>()),
                     ),
                   ],
                 ),

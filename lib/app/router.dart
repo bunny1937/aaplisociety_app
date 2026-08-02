@@ -26,7 +26,7 @@ import '../features/member/profile/parking_page.dart';
 import '../features/member/profile/family_members_page.dart';
 import '../features/member/profile/emergency_contact_page.dart';
 import '../features/member/profile/basic_details_page.dart';
-import '../features/member/profile/tenant_details_page.dart';
+import '../features/member/essential_contacts_page.dart';
 
 GoRouter buildRouter() => GoRouter(
       initialLocation: '/',
@@ -119,6 +119,12 @@ GoRouter buildRouter() => GoRouter(
         GoRoute(
             path: '/notifications',
             pageBuilder: (c, s) => _fade(const NotificationCenterPage(), s)),
+        // The services/contacts directory - ambulance, fire, society office,
+        // electricity, plumber. Linked from BOTH the owner profile and the
+        // tenant profile; it existed in neither before.
+        GoRoute(
+            path: '/essential-contacts',
+            pageBuilder: (c, s) => _fade(const EssentialContactsPage(), s)),
         GoRoute(
             path: '/profile/basic-details',
             pageBuilder: (c, s) {
@@ -130,27 +136,6 @@ GoRouter buildRouter() => GoRouter(
                     wing: extra?['wing'] as String?,
                     email: extra?['email'] as String?,
                     canEdit: extra?['canEdit'] == true,
-                    parkingSlots:
-                        (extra?['parkingSlots'] as List?)?.cast<Map>() ??
-                            const <Map>[],
-                    familyMembers:
-                        (extra?['familyMembers'] as List?)?.cast<Map>() ??
-                            const <Map>[],
-                  ),
-                  s);
-            }),
-        GoRoute(
-            path: '/profile/tenant-details',
-            pageBuilder: (c, s) {
-              final extra = s.extra as Map<String, dynamic>?;
-              return _fade(
-                  TenantDetailsPage(
-                    user: extra?['user'] as Map? ?? const {},
-                    member: extra?['member'] as Map?,
-                    flatNo: extra?['flatNo'] as String?,
-                    wing: extra?['wing'] as String?,
-                    email: extra?['email'] as String?,
-                    societyName: extra?['societyName'] as String?,
                     parkingSlots:
                         (extra?['parkingSlots'] as List?)?.cast<Map>() ??
                             const <Map>[],

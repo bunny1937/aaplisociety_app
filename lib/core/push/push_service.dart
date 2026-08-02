@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import '../logging/app_logger.dart';
+import '../session/session_role.dart';
 import '../socket/socket_bus.dart';
 import '../../features/member/member_shell.dart';
 import 'firebase_bootstrap.dart';
@@ -191,22 +192,59 @@ class PushService {
     return null;
   }
 
+  /// Routes that only make sense for a flat OWNER.
+  ///
+  /// `/receipts` is the maintenance-receipt archive for the person who pays the
+  /// society, `/my-tenant` and `/manage-tenants` are landlord tools, and
+  /// `/rent-payments` is the owner's rent LEDGER ("records"), not the tenant's
+  /// pay-rent screen. Sending a tenant to any of them is how a rent reminder
+  /// ended up opening a receipt for 2000 rupees the OWNER had paid.
+  static const _ownerOnlyRoutes = <String>{
+    '/receipts',
+    '/rent-payments',
+    '/my-tenant',
+    '/manage-tenants',
+    '/tenant-history',
+    '/bills',
+  };
+
+  /// Where a tenant should land instead. `/tenant-profile` is the tenant's own
+  /// hub - it holds their rent submission form and rent history.
+  static String _tenantSafeRoute(String? type) {
+    switch (type) {
+      case 'RENT_REMINDER':
+      case 'RENT_PAYMENT_DECISION':
+      case 'PAYMENT_RECEIVED':
+        return '/tenant-profile';
+      case 'COMPLAINT_APPROVED':
+      case 'COMPLAINT_REJECTED':
+        return '/complaints';
+      default:
+        return '/notifications';
+    }
+  }
+
   static String? _routeForType(String? type) {
+    final isTenant = isTenantNotifier.value;
     switch (type) {
       case 'BILL_GENERATED':
-        return '/bills';
+        // Tenants have no Bills tab at all (see MemberShell).
+        return isTenant ? '/notifications' : '/bills';
       case 'PAYMENT_RECEIVED':
-        return '/receipts';
+        return isTenant ? '/tenant-profile' : '/receipts';
       case 'COMPLAINT_APPROVED':
       case 'COMPLAINT_REJECTED':
         return '/complaints';
       case 'RENT_PAYMENT_SUBMITTED':
-        return '/manage-tenants';
+        // Only an owner receives this - it means their tenant paid.
+        return isTenant ? '/tenant-profile' : '/manage-tenants';
       case 'RENT_PAYMENT_DECISION':
       case 'RENT_REMINDER':
-        return '/rent-payments';
+        // Owner -> the rent records ledger. Tenant -> their own rent screen,
+        // where they can actually act on the reminder and pay.
+        return isTenant ? '/tenant-profile' : '/rent-payments';
       case 'TENANT_LEASE_EXPIRED':
-        return '/my-tenant';
+        return isTenant ? '/tenant-profile' : '/my-tenant';
       default:
         return null;
     }
@@ -232,7 +270,15 @@ class PushService {
         if (location != '/member') router.go('/member');
         return;
       }
-      final requested = (data['route'] as String?)?.trim();
+      var requested = (data['route'] as String?)?.trim();
+      // The backend writes `route` from the sender's point of view and does not
+      // know which role is reading. Never honour an owner-only destination for
+      // a tenant, even when the payload asks for it explicitly.
+      if (requested != null &&
+          isTenantNotifier.value &&
+          _ownerOnlyRoutes.contains(requested)) {
+        requested = _tenantSafeRoute(data['type'] as String?);
+      }
       final route = (requested != null && _pushableRoutes.contains(requested))
           ? requested
           : (_routeForType(type) ?? '/notifications');

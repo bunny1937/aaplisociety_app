@@ -52,25 +52,8 @@ Future<List> fetchTenantHistory(Dio dio) async {
   final res = await dio.get('/tenant-history');
   final data = res.data as Map;
   final out = <Map>[];
-  // `currentTenant._id` is Member.currentTenant's own embedded subdocument
-  // id — NOT the TenantRequest id every lifecycle action (login toggle,
-  // notes, end-lease, document attach...) actually looks up. Every one of
-  // those calls was 404ing "Tenant request not found" because it was being
-  // handed this wrong id. `requests` (also returned by /tenant-history) has
-  // the real TenantRequest docs; swap in the Approved one's _id here so every
-  // caller of this function gets an id the backend can actually find.
-  final requests = (data['requests'] as List? ?? const []).cast<Map>();
-  Map? activeRequest;
-  for (final r in requests) {
-    if (r['status']?.toString() == 'Approved') {
-      activeRequest = r;
-      break;
-    }
-  }
   if (data['currentTenant'] is Map) {
-    final current = Map<String, dynamic>.from(data['currentTenant'] as Map);
-    if (activeRequest != null) current['_id'] = activeRequest['_id'];
-    out.add({...current, '_section': 'current'});
+    out.add({...data['currentTenant'] as Map, '_section': 'current'});
   }
   out.addAll((data['history'] as List? ?? const [])
       .cast<Map>()
@@ -128,6 +111,49 @@ Future<Map<String, dynamic>> attachTenantDocument(
   final res = await dio.post('/tenant-requests/$requestId/documents',
       data: {'field': field, 'key': key});
   return Map<String, dynamic>.from(res.data as Map);
+}
+
+/// Presigned, short-lived URL to actually LOOK at a document on file.
+///
+/// Only the admin web console had this. The owner app could see that a document
+/// existed and nothing more, which is why an uploaded contract was invisible.
+/// Returns null when the document is not on file (404) rather than throwing,
+/// so the review sheet can just say so.
+Future<String?> fetchTenantDocumentUrl(
+    Dio dio, String requestId, String field) async {
+  try {
+    final res = await dio.get('/tenant-requests/$requestId/documents/$field');
+    final body = res.data;
+    final url = body is Map ? (body['url'] ?? body['downloadUrl']) : null;
+    return url?.toString();
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 404) return null;
+    rethrow;
+  }
+}
+
+/// Owner accepts a document, or sends it back with a reason.
+///
+/// Returns the updated `documents` map so the review sheet can repaint from
+/// server truth instead of guessing.
+Future<Map<String, dynamic>?> reviewTenantDocument(
+  Dio dio,
+  String requestId, {
+  required String field,
+  required bool accept,
+  String? reason,
+}) async {
+  final res = await dio.patch(
+    '/tenant-requests/$requestId/documents',
+    data: {
+      'field': field,
+      'action': accept ? 'accept' : 'return',
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+    },
+  );
+  final body = res.data;
+  final docs = body is Map ? body['documents'] : null;
+  return docs is Map ? Map<String, dynamic>.from(docs) : null;
 }
 
 /// Owner adds a private note to the tenancy.

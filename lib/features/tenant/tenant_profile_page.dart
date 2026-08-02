@@ -13,9 +13,11 @@ import '../../core/widgets/pulse_scaffold.dart';
 import '../auth/bloc/auth_bloc.dart';
 import '../../core/theme/haptics.dart';
 import '../../core/theme/theme_controller.dart';
+import '../../core/session/session_role.dart';
 import '../member/notices_page.dart';
 import '../member/pulse/member_display.dart';
 import '../member/pulse/pulse.dart';
+import '../member/sos_control.dart';
 import 'rent_payment_page.dart';
 import 'tenant_api.dart';
 import 'tenant_ui.dart';
@@ -91,6 +93,9 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Tell the rest of the app a tenant is driving. Notification taps read this
+    // to avoid dumping a tenant on owner-only screens like /receipts.
+    publishIsTenant(true);
     final t = context.pulse;
     final authState = context.watch<AuthBloc>().state;
     // Typed explicitly: AuthAuthed.user/claims come off JSON as
@@ -364,8 +369,7 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
               _OwnerCard(
                 name: displayName(tenancy?['ownerName'] ?? member['name'],
                     fallback: 'Your flat owner'),
-                phone: (tenancy?['ownerPhone'] ?? member['contactNumber'])
-                        ?.toString() ??
+                phone: (tenancy?['ownerPhone'] ?? member['phone'])?.toString() ??
                     '',
                 flatLabel: flatLabel,
                 // Needed for the shared message thread. Null on an older
@@ -392,8 +396,34 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
                     label: 'Complaints',
                     onTap: () => context.push('/complaints'),
                   ),
+                  // The tenant received pushes - rent reminders, visitor
+                  // alerts, document decisions - and had no screen anywhere in
+                  // their surface that listed them. The page already existed at
+                  // /notifications; nothing on the tenant side ever linked to
+                  // it.
+                  PulseRow(
+                    icon: Icons.notifications_none_rounded,
+                    label: 'Notifications',
+                    sublabel: 'Rent reminders, visitors and society updates',
+                    onTap: () => context.push('/notifications'),
+                  ),
+                  PulseRow(
+                    icon: Icons.contact_phone_outlined,
+                    label: 'Essential contacts',
+                    sublabel: 'Emergency, society and utility numbers',
+                    onTap: () => context.push('/essential-contacts'),
+                  ),
                 ],
               ),
+              const SizedBox(height: 18),
+
+              // ---- Emergency -------------------------------------------------
+              // A tenant is a resident. They can have a medical emergency, a
+              // fire or an intruder exactly like an owner can, yet SOS was
+              // built only into the owner's profile screen, so the person
+              // physically living in the flat had no panic button at all.
+              const PulseSectionLabel('Emergency'),
+              const SosControl(),
               const SizedBox(height: 18),
 
               // ---- Account --------------------------------------------------
@@ -403,21 +433,35 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
                   PulseRow(
                     icon: Icons.person_outline_rounded,
                     label: 'Personal details',
-                    // Tenants get their OWN details (currentTenant.*), not the
-                    // flat owner's — `/profile/basic-details` always shows the
-                    // owner's Member record regardless of who's logged in.
-                    // TenantDetailsPage reads member['currentTenant'] instead.
-                    onTap: () => context.push('/profile/tenant-details', extra: {
-                      'user': user,
-                      'member': member,
+                    // THIS is why the tenant's personal details screen was
+                    // blank. `/profile/basic-details` reads everything it shows
+                    // out of `state.extra` (see router.dart) and this call
+                    // passed no extra at all, so member/flat/email/parking/
+                    // family all arrived null and every tab rendered empty.
+                    // The owner side already passed them; the tenant side never
+                    // did.
+                    onTap: () => context.push('/profile/basic-details', extra: {
+                      // Was `member`, the flat's REGISTERED member record -
+                      // i.e. the landlord. So a tenant opening their own
+                      // "Personal details" was shown the OWNER's name, phone,
+                      // Aadhaar and family. Their own identity comes from the
+                      // tenancy record and their user account, so build that
+                      // instead and never leak the owner's row into it.
+                      'member': _tenantIdentity(tenancy, user, member),
                       'flatNo': flatNo,
                       'wing': wing,
-                      'email': user['email'],
+                      'email': (tenancy?['tenantEmail'] ?? user['email']),
+                      // Read-only for tenants: `member` is the flat's
+                      // registered member record (the owner's), so an editable
+                      // form here would let a tenant rewrite the landlord's
+                      // details.
+                      'canEdit': false,
                       'parkingSlots':
                           (member['parkingSlots'] as List?)?.cast<Map>() ??
                               const <Map>[],
+                      // The owner's family list is not the tenant's family.
                       'familyMembers':
-                          (member['familyMembers'] as List?)?.cast<Map>() ??
+                          (tenancy?['familyMembers'] as List?)?.cast<Map>() ??
                               const <Map>[],
                     }),
                   ),
@@ -474,6 +518,44 @@ class _TenantProfilePageState extends State<TenantProfilePage> {
       ),
     );
   }
+}
+
+/// Builds the TENANT's own identity record for the Personal details screen.
+///
+/// `member` is the flat's registered member row, which belongs to the LANDLORD.
+/// Handing it to the details screen meant a tenant tapping "Personal details"
+/// read the owner's name, phone and family instead of their own.
+///
+/// Everything here comes from the tenancy record (what the owner entered when
+/// adding this tenant) and the tenant's own user account. `member` is consulted
+/// only for flat-level facts that genuinely belong to the flat, never for
+/// identity.
+Map<String, dynamic> _tenantIdentity(Map? tenancy, Map user, Map member) {
+  String? pick(List<Object?> candidates) {
+    for (final c in candidates) {
+      final s = c?.toString().trim();
+      if (s != null && s.isNotEmpty && s != 'null') return s;
+    }
+    return null;
+  }
+
+  return <String, dynamic>{
+    'name': pick([tenancy?['tenantName'], user['name'], 'You']),
+    'phone': pick([tenancy?['tenantPhone'], user['phone']]),
+    'email': pick([tenancy?['tenantEmail'], user['email']]),
+    'panCard': pick([tenancy?['panCard']]),
+    'aadhaar': pick([tenancy?['aadhaar'], tenancy?['aadhaarNumber']]),
+    // Flat-level facts. These describe the home, not the landlord, so they are
+    // correct for the tenant too.
+    'flatNo': pick([member['flatNo']]),
+    'wing': pick([member['wing']]),
+    'occupancyType': 'Tenant',
+    // Lease terms are the tenant's own data.
+    'leaseStartDate': tenancy?['leaseStartDate'],
+    'leaseEndDate': tenancy?['leaseEndDate'],
+    'rentPerMonth': tenancy?['rentPerMonth'],
+    'depositAmount': tenancy?['depositAmount'],
+  };
 }
 
 class _DocStatusRow extends StatefulWidget {
@@ -750,16 +832,10 @@ class _OwnerCard extends StatelessWidget {
                       hasPhone
                           ? phone
                           : 'No number on record \u2014 ask the society office',
-                      // kTabularFigures is a whole TextStyle, not a
-                      // List<FontFeature>, so it is composed with copyWith
-                      // rather than passed to fontFeatures. Tabular digits only
-                      // for the phone number - it keeps the number from
-                      // shifting width, and means nothing for prose.
-                      style: (hasPhone ? kTabularFigures : const TextStyle())
-                          .copyWith(
-                        fontSize: 12.5,
-                        color: hasPhone ? t.fg2 : t.fg4,
-                      ),
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          color: hasPhone ? t.fg2 : t.fg4,
+                          fontFeatures: hasPhone ? kTabularFigures : null),
                     ),
                     if (flatLabel.isNotEmpty) ...[
                       const SizedBox(height: 2),

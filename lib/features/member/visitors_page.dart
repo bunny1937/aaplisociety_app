@@ -533,7 +533,7 @@ class _GateCardState extends State<_GateCard> {
             const SizedBox(height: 8),
             _SosSafeButton(
               visitorId: '${visitor['_id']}',
-              acknowledged: (visitor['sosAck'] as Map?)?['at'] != null,
+              acknowledged: sosAcknowledged(visitor),
             ),
           ],
         ),
@@ -849,6 +849,43 @@ class _PassRow extends StatelessWidget {
   }
 }
 
+/// Ids the resident has already marked safe on this device.
+///
+/// The "we are safe" state was read ONLY from `sosAck.at`. If the backend
+/// resolved the alert any other way - the guard acknowledged it at the gate, a
+/// `status` moved to Resolved, an older record wrote `sosAcknowledgedAt` - the
+/// card came back armed on the next refresh. So an emergency the guard had
+/// dealt with hours ago kept reappearing, and pressing "we are safe" again
+/// changed nothing because the field the UI was watching was never the field
+/// being written.
+///
+/// This set is the last line of defence: once you have acknowledged an alert,
+/// it stays acknowledged for the rest of the session no matter what shape the
+/// server response comes back in.
+final Set<String> _locallyAckedSos = <String>{};
+
+/// Tolerant "has this SOS been dealt with?" check.
+bool sosAcknowledged(Map visitor) {
+  final id = '${visitor['_id'] ?? ''}';
+  if (id.isNotEmpty && _locallyAckedSos.contains(id)) return true;
+
+  final ack = visitor['sosAck'];
+  if (ack is Map && (ack['at'] != null || ack['by'] != null)) return true;
+  if (visitor['sosAcknowledgedAt'] != null) return true;
+  if (visitor['sosResolved'] == true) return true;
+  if (visitor['resolvedAt'] != null) return true;
+
+  // The guard closing it out at the gate counts. The resident does not need to
+  // silence an alarm that is already over.
+  const settled = {'resolved', 'handled', 'closed', 'acknowledged', 'safe'};
+  if (settled.contains('${visitor['sosStatus'] ?? ''}'.toLowerCase())) {
+    return true;
+  }
+  if (settled.contains('${visitor['status'] ?? ''}'.toLowerCase())) return true;
+
+  return false;
+}
+
 /// "We are safe" on a resident's own SOS card.
 ///
 /// Same endpoint the guard's Acknowledge uses. It matters here because the alarm
@@ -875,6 +912,9 @@ class _SosSafeButtonState extends State<_SosSafeButton> {
     setState(() => _busy = true);
     try {
       await acknowledgeSos(context.read<Dio>(), widget.visitorId);
+      // Remember it here too, so a pull-to-refresh cannot re-arm the alert if
+      // the server echoes the record back in a shape we do not recognise.
+      _locallyAckedSos.add(widget.visitorId);
       if (!mounted) return;
       setState(() {
         _done = true;

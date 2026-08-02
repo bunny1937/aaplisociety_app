@@ -386,6 +386,37 @@ List<TenantDocField> missingDocs(Map? tenancy) {
   }).toList();
 }
 
+/// Is the tenant's app login switched on?
+///
+/// This used to be a bare `tenancy['loginEnabled'] == true`, which is wrong in
+/// two separate ways and is why the switch sat grey and "disabled" for a tenant
+/// who had been logging in for weeks:
+///
+///  1. The field simply was not in the payload (the tenant-history DTO dropped
+///     it), so `== true` was false and the switch rendered OFF.
+///  2. Even with the DTO fixed, ABSENT is not the same as DISABLED. A tenancy
+///     approved before the login flag existed has a perfectly working login and
+///     no flag to prove it. Defaulting those to OFF tells the owner a lie and
+///     invites them to "enable" something that was never off.
+///
+/// So: an explicit boolean always wins; otherwise an approved/active tenancy is
+/// treated as enabled, which is what the backend actually does.
+bool resolveLoginEnabled(Map? tenancy) {
+  if (tenancy == null) return false;
+  for (final key in const [
+    'loginEnabled',
+    'tenantLoginEnabled',
+    'appLoginEnabled',
+    'isActive',
+  ]) {
+    final v = tenancy[key];
+    if (v is bool) return v;
+    if (v is String && (v == 'true' || v == 'false')) return v == 'true';
+  }
+  final status = '${tenancy['status'] ?? ''}'.toLowerCase();
+  return status == 'approved' || status == 'active';
+}
+
 /// Mockup `TenancyCard` — the hero of My Tenant.
 class TenancyCard extends StatelessWidget {
   final Map tenancy;
@@ -398,6 +429,7 @@ class TenancyCard extends StatelessWidget {
   final VoidCallback? onOpenDetail;
   final VoidCallback? onFixDocs;
   final bool loginBusy;
+  final bool? loginOverride;
   const TenancyCard({
     super.key,
     required this.tenancy,
@@ -410,6 +442,7 @@ class TenancyCard extends StatelessWidget {
     this.onOpenDetail,
     this.onFixDocs,
     this.loginBusy = false,
+    this.loginOverride,
   });
 
   @override
@@ -417,7 +450,10 @@ class TenancyCard extends StatelessWidget {
     final t = context.pulse;
     final name = displayName(tenancy['tenantName'], fallback: 'Tenant');
     final missing = missingDocs(tenancy);
-    final loginEnabled = tenancy['loginEnabled'] == true;
+    // `loginOverride` is the optimistic value the parent applies the instant a
+    // toggle succeeds, so the switch never disagrees with the toast that just
+    // said "Tenant login enabled".
+    final loginEnabled = loginOverride ?? resolveLoginEnabled(tenancy);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

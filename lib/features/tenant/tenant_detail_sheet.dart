@@ -3,6 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/app_toast.dart';
 import '../member/pulse/pulse.dart';
+import 'tenancy_thread_sheet.dart';
+import 'tenant_documents_sheet.dart';
 import 'tenant_ui.dart';
 
 enum TenantDetailKind { active, request, past }
@@ -134,25 +136,72 @@ class _TenantDetailBody extends StatelessWidget {
             fmtLeaseRange(
                 tenancy['leaseStartDate'], tenancy['leaseEndDate'])),
         if (kind == TenantDetailKind.active)
+          // Was `loginEnabled == true`, which reported "Disabled" for every
+          // tenancy whose flag the API never sent. See resolveLoginEnabled().
           TenantKv('App login',
-              tenancy['loginEnabled'] == true ? 'Enabled' : 'Disabled'),
+              resolveLoginEnabled(tenancy) ? 'Enabled' : 'Disabled'),
         if (kind == TenantDetailKind.past)
           TenantKv('Move-out reason', tenancy['moveOutReason']?.toString()),
+        // This row used to be a dead pill: it announced "3 missing" and that
+        // was the end of the conversation. No way to see the one document that
+        // WAS uploaded, no way to open it, accept it, or send it back. Now it
+        // is a door into the real review sheet.
         TenantKv(
           'Documents',
           null,
-          last: notes.isEmpty,
           valueWidget: Align(
             alignment: Alignment.centerRight,
-            child: PulsePill(
-              label: missing.isEmpty
-                  ? 'All ${kTenantDocFields.length} on file'
-                  : '${missing.length} missing',
-              tone: missing.isEmpty ? PulseTone.approved : PulseTone.pending,
-              small: true,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PulsePill(
+                  label: missing.isEmpty
+                      ? 'All ${kTenantDocFields.length} on file'
+                      : '${missing.length} missing',
+                  tone:
+                      missing.isEmpty ? PulseTone.approved : PulseTone.pending,
+                  small: true,
+                ),
+                Icon(Icons.chevron_right_rounded, size: 18, color: t.fg4),
+              ],
             ),
           ),
+          onTap: kind == TenantDetailKind.request
+              ? null
+              : () => showTenantDocumentsSheet(context,
+                  tenancy: tenancy, asOwner: true),
         ),
+
+        // The owner received a push saying their tenant had written to them and
+        // then had nowhere to read it. The thread lives here now.
+        if (kind == TenantDetailKind.active &&
+            '${tenancy['_id'] ?? ''}'.isNotEmpty)
+          TenantKv(
+            'Messages',
+            null,
+            last: notes.isEmpty,
+            valueWidget: Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Open chat',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: t.brand)),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: t.brand),
+                ],
+              ),
+            ),
+            onTap: () => showTenancyThreadSheet(
+              context,
+              requestId: '${tenancy['_id']}',
+              title:
+                  'Messages with ${displayName(tenancy['tenantName'], fallback: 'your tenant')}',
+              mineIsTenant: false,
+            ),
+          ),
 
         if (notes.isNotEmpty) ...[
           const SizedBox(height: 14),
