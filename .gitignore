@@ -45,6 +45,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Release signing — never commit the upload keystore or its passwords.
+# Back these up somewhere safe outside this repo (password manager, secure
+# vault); losing them means you can never publish an update under the same
+# Play Store listing again.
+/android/key.properties
+/android/app/*.jks
+/android/app/*.keystore
 MEMBER_V2_DESIGN_PORT.md                                   
 MEMBER_V2_GAPS.md                                          
 NEEDSFIXmd.md                                                

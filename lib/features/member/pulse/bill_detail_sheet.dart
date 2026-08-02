@@ -147,7 +147,9 @@ class _BillDetailBodyState extends State<_BillDetailBody> {
     };
     final statusLabel = settled
         ? 'Paid'
-        : (status == 'Partial' ? 'Paid (Partial)' : status);
+        : closed
+            ? 'Carried Forward'
+            : status;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

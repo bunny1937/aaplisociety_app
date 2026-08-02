@@ -52,8 +52,25 @@ Future<List> fetchTenantHistory(Dio dio) async {
   final res = await dio.get('/tenant-history');
   final data = res.data as Map;
   final out = <Map>[];
+  // `currentTenant._id` is Member.currentTenant's own embedded subdocument
+  // id — NOT the TenantRequest id every lifecycle action (login toggle,
+  // notes, end-lease, document attach...) actually looks up. Every one of
+  // those calls was 404ing "Tenant request not found" because it was being
+  // handed this wrong id. `requests` (also returned by /tenant-history) has
+  // the real TenantRequest docs; swap in the Approved one's _id here so every
+  // caller of this function gets an id the backend can actually find.
+  final requests = (data['requests'] as List? ?? const []).cast<Map>();
+  Map? activeRequest;
+  for (final r in requests) {
+    if (r['status']?.toString() == 'Approved') {
+      activeRequest = r;
+      break;
+    }
+  }
   if (data['currentTenant'] is Map) {
-    out.add({...data['currentTenant'] as Map, '_section': 'current'});
+    final current = Map<String, dynamic>.from(data['currentTenant'] as Map);
+    if (activeRequest != null) current['_id'] = activeRequest['_id'];
+    out.add({...current, '_section': 'current'});
   }
   out.addAll((data['history'] as List? ?? const [])
       .cast<Map>()

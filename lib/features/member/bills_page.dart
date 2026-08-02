@@ -369,11 +369,12 @@ class _BillThumbCard extends StatelessWidget {
     final overdue = status == 'Overdue' && isLatest;
     final overdueDays =
         overdue && due != null ? DateTime.now().difference(due).inDays : 0;
-    // "Partial" reads as an alarm next to Overdue/Unpaid's red — soften it to
-    // "Paid (Partial)" in a neutral tone once the balance has moved off this
-    // bill, since there's genuinely nothing actionable left to do here.
-    final statusLabel =
-        status == 'Partial' ? 'Paid (Partial)' : status;
+    // "Carried Forward" once the balance has moved to a later bill — labelling
+    // this "Paid (Partial)" was actively misleading (nothing was paid here,
+    // the money's still owed, just on a different bill now).
+    final statusLabel = carriedForward
+        ? 'Carried Forward'
+        : (status == 'Partial' ? 'Partial' : status);
     final tone = switch (status) {
       'Paid' => PulseTone.paid,
       'Partial' => carriedForward ? PulseTone.neutral : PulseTone.partial,

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/network/api_error.dart';
+import '../../core/network/sos_api.dart';
 import '../../core/socket/socket_bus.dart';
 import '../../core/storage/offline_outbox.dart';
 import '../../core/theme/haptics.dart';
@@ -84,6 +85,28 @@ class _GateTabState extends State<GateTab> {
       if (!mounted) return;
       Haptics.heavy();
       showAppToast(context, apiErrorMessage(err, 'Could not send reminder'),
+          kind: AppToastKind.alert);
+    }
+  }
+
+  /// Guard acknowledges an SOS — silences the alarm on every device in the
+  /// flat (see sos_api.dart doc comment: "Callable by a guard, or by anyone
+  /// in the affected flat"). Was never wired up here, so the household had
+  /// no way to know the guard had actually seen and was responding to it,
+  /// short of the guard physically showing up.
+  Future<void> _ackSos(Dio dio, String visitorId) async {
+    Haptics.medium();
+    try {
+      await acknowledgeSos(dio, visitorId, byName: 'Security');
+      if (!mounted) return;
+      Haptics.success();
+      showAppToast(context, 'Acknowledged — household alerted you\'re responding',
+          kind: AppToastKind.success);
+      await _listKey.currentState?.reload();
+    } on DioException catch (err) {
+      if (!mounted) return;
+      Haptics.heavy();
+      showAppToast(context, apiErrorMessage(err, 'Could not acknowledge SOS'),
           kind: AppToastKind.alert);
     }
   }
@@ -355,6 +378,8 @@ class _GateTabState extends State<GateTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: items.asMap().entries.map((entry) {
           final v = entry.value as Map;
+          final visitorId = '${v['_id'] ?? ''}';
+          final acknowledged = (v['sosAck'] as Map?)?['at'] != null;
           // The flat is the single most important field and was never shown.
           final wing = '${v['wing'] ?? ''}';
           final flatNo = '${v['flatNo'] ?? v['flat'] ?? ''}';
@@ -427,6 +452,23 @@ class _GateTabState extends State<GateTab> {
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                           color: t.danger)),
+                if (visitorId.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  if (acknowledged)
+                    Text('Acknowledged \u2014 household notified you\'re responding',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: t.success))
+                  else
+                    PulseButton(
+                      label: 'Acknowledge \u2014 I\'m responding',
+                      icon: Icons.check_circle_outline_rounded,
+                      variant: PulseBtnVariant.secondary,
+                      full: true,
+                      onTap: () => _ackSos(dio, visitorId),
+                    ),
+                ],
               ],
             ),
           );

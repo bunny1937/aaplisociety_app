@@ -1,7 +1,7 @@
 name: aapli_society
 description: Aapli Society multi-tenant resident & security app
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.0+5
 environment:
   sdk: ">=3.4.0 <4.0.0"
 dependencies:
