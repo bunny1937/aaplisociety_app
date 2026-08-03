@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/haptics.dart';
 import '../member/pulse/pulse.dart';
 import 'bloc/auth_bloc.dart';
+import 'widgets/flat_picker_sheet.dart';
 
 /// Port of ui_kits/member-v2 `MemberV2ScreensAuth.jsx` `LoginScreen` — light
 /// Pulse look (design intentionally drops the app's old dark-glass login
@@ -22,6 +25,7 @@ class _LoginPageState extends State<LoginPage> {
   final _id = TextEditingController();
   final _pw = TextEditingController();
   bool _obscure = true;
+  Completer<String?>? _pendingSwitch;
   @override
   void dispose() {
     _id.dispose();
@@ -101,7 +105,34 @@ class _LoginPageState extends State<LoginPage> {
                             context.go(homeRouteForRole(state.role));
                           }
                         } else if (state is AuthNeedsProfile) {
-                          context.go('/select-profile');
+                          FlatPickerSheet.show(
+                            context,
+                            name: state.name,
+                            flats: state.profiles,
+                            onSelect: (profileId) async {
+                              final completer = Completer<String?>();
+                              // The bloc owns the call; the sheet only
+                              // reports the outcome.
+                              _pendingSwitch = completer;
+                              context.read<AuthBloc>().add(
+                                    SwitchProfileRequested(
+                                        profileId, state.selectToken),
+                                  );
+                              return completer.future;
+                            },
+                            onCancel: () => context
+                                .read<AuthBloc>()
+                                .add(LogoutRequested()),
+                          );
+                        }
+
+                        if (state is AuthAuthed) {
+                          _pendingSwitch?.complete(null);
+                          _pendingSwitch = null;
+                        }
+                        if (state is AuthError) {
+                          _pendingSwitch?.complete(state.message);
+                          _pendingSwitch = null;
                         }
                       },
                       builder: (context, state) {

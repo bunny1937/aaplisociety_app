@@ -79,8 +79,8 @@ String inr(num? value, {bool decimals = false}) {
 }
 
 /// Tabular figures so columns of money line up. Pair with [inr].
-const TextStyle kTabularFigures =
-    TextStyle(fontFeatures: [FontFeature.tabularFigures()]);
+const List<FontFeature> kTabularFigures =
+    [FontFeature.tabularFigures()];
 
 DateTime? parseDate(dynamic raw) {
   if (raw == null) return null;

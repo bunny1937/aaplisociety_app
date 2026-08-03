@@ -27,6 +27,10 @@ import '../features/member/profile/family_members_page.dart';
 import '../features/member/profile/emergency_contact_page.dart';
 import '../features/member/profile/basic_details_page.dart';
 import '../features/member/essential_contacts_page.dart';
+import '../features/onboarding/data/onboarding_api.dart';
+import '../features/onboarding/existing_account_page.dart';
+import '../features/onboarding/new_account_setup_page.dart';
+import '../features/onboarding/onboarding_gate_page.dart';
 
 GoRouter buildRouter() => GoRouter(
       initialLocation: '/',
@@ -34,6 +38,39 @@ GoRouter buildRouter() => GoRouter(
         GoRoute(path: '/', builder: (c, s) => const SplashPage()),
         GoRoute(
             path: '/login', pageBuilder: (c, s) => _fade(const LoginPage(), s)),
+        // ── Onboarding ──────────────────────────────────────────────
+        // Reached by deep link from the activation email, or manually from
+        // the login screen's "Activate my flat" link.
+        GoRoute(
+            path: '/onboarding',
+            pageBuilder: (c, s) => _fade(
+                OnboardingGatePage(token: s.uri.queryParameters['token']), s)),
+        GoRoute(
+            path: '/onboarding/setup',
+            pageBuilder: (c, s) {
+              final extra = (s.extra as Map<String, dynamic>?) ?? const {};
+              return _fade(
+                NewAccountSetupPage(
+                  token: (extra['token'] ?? '') as String,
+                  email: (extra['email'] ?? '') as String,
+                  name: extra['name'] as String?,
+                  flats: (extra['flats'] as List<FlatSummary>?) ?? const [],
+                ),
+                s,
+              );
+            }),
+        GoRoute(
+            path: '/onboarding/existing',
+            pageBuilder: (c, s) {
+              final extra = (s.extra as Map<String, dynamic>?) ?? const {};
+              return _fade(
+                ExistingAccountPage(
+                  result: extra['result'] as LookupResult,
+                  email: (extra['email'] ?? '') as String,
+                ),
+                s,
+              );
+            }),
         GoRoute(
             path: '/select-profile',
             builder: (c, s) => const ProfileSelectPage()),

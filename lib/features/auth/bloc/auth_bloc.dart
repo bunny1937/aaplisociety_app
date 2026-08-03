@@ -4,6 +4,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/storage/token_store.dart';
 import '../../../core/storage/offline_cache.dart';
 import '../../../core/storage/offline_outbox.dart';
+import '../../onboarding/data/onboarding_api.dart' show FlatSummary;
 
 sealed class AuthEvent {}
 
@@ -15,7 +16,8 @@ class LoginRequested extends AuthEvent {
 
 class SwitchProfileRequested extends AuthEvent {
   final String profileId;
-  SwitchProfileRequested(this.profileId);
+  final String profileSelectToken;
+  SwitchProfileRequested(this.profileId, this.profileSelectToken);
 }
 
 class SessionRestored extends AuthEvent {
@@ -53,9 +55,10 @@ String homeRouteForRole(String role) {
 }
 
 class AuthNeedsProfile extends AuthState {
-  final List profiles;
+  final String name;
+  final List<FlatSummary> profiles;
   final String selectToken;
-  AuthNeedsProfile(this.profiles, this.selectToken);
+  AuthNeedsProfile(this.name, this.profiles, this.selectToken);
 }
 
 class AuthError extends AuthState {
@@ -72,11 +75,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       try {
         final res = await dio
             .post('/auth/login', data: {'identifier': e.id, 'password': e.pw});
-        if (res.data['needsProfileSelect'] == true) {
-          await tokens.saveAccess(res.data['selectToken']);
-          emit(AuthNeedsProfile(res.data['profiles'], res.data['selectToken']));
-          return;
-        }
+       // Read both name pairs so deploy order stops mattering: a server rollback
+// cannot strand a shipped build at the login screen.
+final needsSelect =
+    (res.data['requiresProfileSelect'] ?? res.data['needsProfileSelect']) == true;
+if (needsSelect) {
+  final token =
+      (res.data['profileSelectToken'] ?? res.data['selectToken']) as String?;
+  final profiles = ((res.data['profiles'] as List?) ?? const [])
+      .map((p) => FlatSummary.fromJson(Map<String, dynamic>.from(p as Map)))
+      .toList();
+  if (token == null || profiles.isEmpty) {
+    emit(AuthError('Could not start profile selection. Please try again.'));
+    return;
+  }
+  emit(AuthNeedsProfile(
+    (res.data['name'] ?? res.data['username']) as String? ?? 'there',
+    profiles,
+    token,
+  ));
+  return;
+}
         await tokens.save(res.data['tokens']['accessToken'],
             res.data['tokens']['refreshToken']);
         emit(await _hydrate(res.data['role']));
@@ -87,8 +106,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<SwitchProfileRequested>((e, emit) async {
       emit(AuthLoading());
       try {
-        final res = await dio
-            .post('/auth/switch-profile', data: {'profileId': e.profileId});
+        // The app has no cookie jar, so the profile-select token is the ONLY
+        // thing authorising this call. It expires in 10 minutes, matching
+        // the web flow.
+        final res = await dio.post('/auth/switch-profile', data: {
+          'profileId': e.profileId,
+          'profileSelectToken': e.profileSelectToken,
+        });
         await tokens.save(res.data['tokens']['accessToken'],
             res.data['tokens']['refreshToken']);
         emit(await _hydrate(res.data['role']));

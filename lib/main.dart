@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
 import 'core/config/flavors.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'core/deeplink/deep_link_service.dart';
 import 'core/logging/app_logger.dart';
 import 'core/network/dio_client.dart';
 import 'core/storage/token_store.dart';
@@ -40,6 +41,9 @@ Future<void> main() async {
     // Storage and Firebase are independent. Initializing them concurrently
     // shortens cold process restore without bypassing the remote-config gate.
     await Future.wait([_initOfflineStorage(), _initFirebaseWithRetry()]);
+    // Must run before the first frame so a cold-start link is captured and
+    // the splash screen can consume it instead of falling through to /login.
+    await DeepLinkService.instance.init();
     runApp(const AapliApp());
   }, (error, stack) {
     AppLogger.error('Uncaught zone error', error: error, stackTrace: stack);

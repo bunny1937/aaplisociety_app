@@ -104,11 +104,11 @@ class _EssentialContactsPageState extends State<EssentialContactsPage> {
   ];
 
   List<_Group> get _groups => [
-        _Group('Emergency', Icons.emergency_share_rounded, _emergency),
+        const _Group('Emergency', Icons.emergency_share_rounded, _emergency),
         if (_society.isNotEmpty)
           _Group('Society', Icons.apartment_rounded, _society),
-        _Group('Helplines', Icons.support_agent_rounded, _helplines),
-        _Group('Utilities', Icons.bolt_rounded, _utilities),
+        const _Group('Helplines', Icons.support_agent_rounded, _helplines),
+        const _Group('Utilities', Icons.bolt_rounded, _utilities),
       ];
 
   Future<void> _call(String number) async {

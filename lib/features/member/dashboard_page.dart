@@ -11,7 +11,6 @@ import 'pulse/notice_emoji.dart';
 import 'pulse/member_display.dart';
 import 'member_shell.dart';
 import 'bills_page.dart' show effectiveStatus, billTitle, inr;
-import 'notices_page.dart' show showNoticesSheet;
 import '../notifications/recent_notifications_popover.dart';
 
 class _DashData {
@@ -169,10 +168,6 @@ class _DashboardPageState extends State<DashboardPage> {
           final pendingVisitors = data.visitors
               .where((v) => (v as Map)['status'] == 'Pending')
               .toList();
-          final urgentNotices = data.notices.where((n) {
-            final p = (n as Map)['priority'];
-            return p == 'urgent' || p == 'high';
-          }).length;
           // The bell badge now counts UNREAD NOTIFICATIONS, not urgent notices.
           final unreadNotifications =
               data.notifications.where((n) => (n as Map)['read'] != true).length;

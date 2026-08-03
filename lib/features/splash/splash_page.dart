@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import '../../core/deeplink/deep_link_service.dart';
 import '../../core/permissions/permission_onboarding.dart';
 import '../../core/remote_config/app_gate.dart';
 import '../../core/storage/token_store.dart';
@@ -20,13 +23,35 @@ class SplashPage extends StatefulWidget {
 
 class _SplashPageState extends State<SplashPage> {
   String? _blocker;
+  StreamSubscription<DeepLinkIntent>? _linkSub;
+
   @override
   void initState() {
     super.initState();
+    // Links that arrive while the app is already running (warm start).
+    _linkSub = DeepLinkService.instance.stream.listen((intent) {
+      final route = intent.route;
+      if (route != null && mounted) context.go(route);
+    });
     _boot();
   }
 
+  @override
+  void dispose() {
+    _linkSub?.cancel();
+    super.dispose();
+  }
+
   Future<void> _boot() async {
+    // A deep link beats everything else. Checked first, and consumed so it
+    // cannot fire twice.
+    final pending = DeepLinkService.instance.consumePending();
+    if (pending?.route != null) {
+      if (!mounted) return;
+      context.go(pending!.route!);
+      return;
+    }
+
     // Firebase.initializeApp() already ran (and was awaited) in main() before
     // runApp - safe to touch FirebaseMessaging here. showNotificationOnboardingIfNeeded
     // no-ops instantly (no dialog) once already shown, so this is cheap on

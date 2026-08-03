@@ -113,12 +113,13 @@ class TenantKv extends StatelessWidget {
   final String? value;
   final bool last;
   final Widget? valueWidget;
+  final VoidCallback? onTap;
   const TenantKv(this.label, this.value,
-      {super.key, this.last = false, this.valueWidget});
+      {super.key, this.last = false, this.valueWidget, this.onTap});
   @override
   Widget build(BuildContext context) {
     final t = context.pulse;
-    return Container(
+    final content = Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         border: last
@@ -151,6 +152,7 @@ class TenantKv extends StatelessWidget {
         ],
       ),
     );
+    return onTap == null ? content : GestureDetector(onTap: onTap, child: content);
   }
 }
 

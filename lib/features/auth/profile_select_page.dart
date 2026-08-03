@@ -8,10 +8,20 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/haptics.dart';
 import '../../core/widgets/press_effect.dart';
 import '../../core/widgets/app_toast.dart';
+import '../onboarding/data/onboarding_api.dart' show FlatSummary;
 import 'bloc/auth_bloc.dart';
 
-class ProfileSelectPage extends StatelessWidget {
+class ProfileSelectPage extends StatefulWidget {
   const ProfileSelectPage({super.key});
+  @override
+  State<ProfileSelectPage> createState() => _ProfileSelectPageState();
+}
+
+class _ProfileSelectPageState extends State<ProfileSelectPage> {
+  // Kept across the AuthLoading state that follows a tap, so the request
+  // in flight still has the token that authorised it.
+  String? _selectToken;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,8 +63,10 @@ class ProfileSelectPage extends StatelessWidget {
               }
             },
             builder: (context, state) {
-              final profiles =
-                  state is AuthNeedsProfile ? state.profiles : const [];
+              if (state is AuthNeedsProfile) _selectToken = state.selectToken;
+              final profiles = state is AuthNeedsProfile
+                  ? state.profiles
+                  : const <FlatSummary>[];
               final loading = state is AuthLoading;
               return Stack(
                 children: [
@@ -63,7 +75,7 @@ class ProfileSelectPage extends StatelessWidget {
                     itemCount: profiles.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, i) {
-                      final p = profiles[i] as Map;
+                      final p = profiles[i];
                       return PressEffect(
                         onTap: loading
                             ? () {}
@@ -71,7 +83,7 @@ class ProfileSelectPage extends StatelessWidget {
                                 Haptics.medium();
                                 context.read<AuthBloc>().add(
                                     SwitchProfileRequested(
-                                        p['profileId'] as String));
+                                        p.profileId, _selectToken ?? ''));
                               },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(18),
@@ -100,12 +112,12 @@ class ProfileSelectPage extends StatelessWidget {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text('${p['societyName']}',
+                                        Text(p.societyName,
                                             style: GoogleFonts.manrope(
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 16,
                                                 color: AppColors.paper)),
-                                        Text('Flat ${p['flatNo']}',
+                                        Text('Flat ${p.flatNo}',
                                             style: GoogleFonts.manrope(
                                                 color: AppColors.inkMuted)),
                                       ],

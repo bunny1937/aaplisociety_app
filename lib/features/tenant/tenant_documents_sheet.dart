@@ -95,6 +95,7 @@ class _DocumentsBodyState extends State<_DocumentsBody> {
   }
 
   Future<void> _submitReview(TenantDocField f, bool accept) async {
+    final dio = context.read<Dio>();
     String? reason;
     if (!accept) {
       reason = await _askReason(f);
@@ -105,7 +106,7 @@ class _DocumentsBodyState extends State<_DocumentsBody> {
     setState(() => _busyField = f.field);
     try {
       final docs = await reviewTenantDocument(
-        context.read<Dio>(),
+        dio,
         _requestId,
         field: f.field,
         accept: accept,
@@ -339,13 +340,13 @@ class _DocReviewTile extends StatelessWidget {
                       height: 15,
                       child: CircularProgressIndicator(strokeWidth: 2))
                 else if (accepted)
-                  const PulsePill(label: 'Accepted', tone: PulseTone.success)
+                  const PulsePill(label: 'Accepted', tone: PulseTone.approved)
                 else if (returned)
-                  const PulsePill(label: 'Sent back', tone: PulseTone.danger)
+                  const PulsePill(label: 'Sent back', tone: PulseTone.rejected)
                 else if (onFile)
                   const PulsePill(label: 'On file', tone: PulseTone.info)
                 else
-                  const PulsePill(label: 'Missing', tone: PulseTone.warning),
+                  const PulsePill(label: 'Missing', tone: PulseTone.pending),
               ],
             ),
             if (returned && reason.isNotEmpty) ...[
