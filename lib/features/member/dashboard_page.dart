@@ -12,6 +12,7 @@ import 'pulse/member_display.dart';
 import 'member_shell.dart';
 import 'bills_page.dart' show effectiveStatus, billTitle, inr;
 import '../notifications/recent_notifications_popover.dart';
+import 'widgets/flat_switcher_avatar.dart';
 
 class _DashData {
   final List bills;
@@ -204,8 +205,10 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 Row(
                   children: [
-                    PulseAvatar(name: displayName, size: 44, ring: true),
-                    const SizedBox(width: 10),
+FlatSwitcherAvatar(
+  dio: context.read<AuthBloc>().dio,
+  size: 44,
+),                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
