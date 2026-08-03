@@ -44,6 +44,7 @@ Future<void> main() async {
     // Must run before the first frame so a cold-start link is captured and
     // the splash screen can consume it instead of falling through to /login.
     await DeepLinkService.instance.init();
+    await restoreThemeMode();
     runApp(const AapliApp());
   }, (error, stack) {
     AppLogger.error('Uncaught zone error', error: error, stackTrace: stack);

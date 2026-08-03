@@ -14,10 +14,24 @@ class LoginRequested extends AuthEvent {
   LoginRequested(this.id, this.pw);
 }
 
+/// First selection, straight after login. Authorised ONLY by the short-lived
+/// pending token that login returned; nothing is in TokenStore yet.
 class SwitchProfileRequested extends AuthEvent {
   final String profileId;
   final String profileSelectToken;
   SwitchProfileRequested(this.profileId, this.profileSelectToken);
+}
+
+/// In-session switch from the dashboard avatar. No pending token exists - the
+/// normal access token on the Dio interceptor is the authorisation.
+///
+/// Deliberately a separate event from SwitchProfileRequested so the two paths
+/// cannot be confused: this one MUST NOT send a profileSelectToken (there isn't
+/// one), and it must wipe the offline cache before emitting, because that cache
+/// holds flat 101's bills, ledger and complaints and we are about to render 201.
+class SwitchProfileInSession extends AuthEvent {
+  final String profileId;
+  SwitchProfileInSession(this.profileId);
 }
 
 class SessionRestored extends AuthEvent {
@@ -75,27 +89,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       try {
         final res = await dio
             .post('/auth/login', data: {'identifier': e.id, 'password': e.pw});
-       // Read both name pairs so deploy order stops mattering: a server rollback
-// cannot strand a shipped build at the login screen.
-final needsSelect =
-    (res.data['requiresProfileSelect'] ?? res.data['needsProfileSelect']) == true;
-if (needsSelect) {
-  final token =
-      (res.data['profileSelectToken'] ?? res.data['selectToken']) as String?;
-  final profiles = ((res.data['profiles'] as List?) ?? const [])
-      .map((p) => FlatSummary.fromJson(Map<String, dynamic>.from(p as Map)))
-      .toList();
-  if (token == null || profiles.isEmpty) {
-    emit(AuthError('Could not start profile selection. Please try again.'));
-    return;
-  }
-  emit(AuthNeedsProfile(
-    (res.data['name'] ?? res.data['username']) as String? ?? 'there',
-    profiles,
-    token,
-  ));
-  return;
-}
+        // Read both name pairs so deploy order stops mattering: a server
+        // rollback cannot strand a shipped build at the login screen.
+        final needsSelect = (res.data['requiresProfileSelect'] ??
+                res.data['needsProfileSelect']) ==
+            true;
+        if (needsSelect) {
+          final token = (res.data['profileSelectToken'] ??
+              res.data['selectToken']) as String?;
+          final profiles = ((res.data['profiles'] as List?) ?? const [])
+              .map((p) => FlatSummary.fromJson(Map<String, dynamic>.from(p as Map)))
+              .toList();
+          if (token == null || profiles.isEmpty) {
+            emit(AuthError(
+                'Could not start profile selection. Please try again.'));
+            return;
+          }
+          emit(AuthNeedsProfile(
+            (res.data['name'] ?? res.data['username']) as String? ?? 'there',
+            profiles,
+            token,
+          ));
+          return;
+        }
         await tokens.save(res.data['tokens']['accessToken'],
             res.data['tokens']['refreshToken']);
         emit(await _hydrate(res.data['role']));
@@ -103,12 +119,13 @@ if (needsSelect) {
         emit(AuthError(apiErrorMessage(err, 'Login failed')));
       }
     });
+
     on<SwitchProfileRequested>((e, emit) async {
       emit(AuthLoading());
       try {
         // The app has no cookie jar, so the profile-select token is the ONLY
-        // thing authorising this call. It expires in 10 minutes, matching
-        // the web flow.
+        // thing authorising this call. It is short lived and deliberately never
+        // written to TokenStore, which is why it travels in the body.
         final res = await dio.post('/auth/switch-profile', data: {
           'profileId': e.profileId,
           'profileSelectToken': e.profileSelectToken,
@@ -120,6 +137,33 @@ if (needsSelect) {
         emit(AuthError(apiErrorMessage(err, 'Could not switch profile')));
       }
     });
+
+    on<SwitchProfileInSession>((e, emit) async {
+      emit(AuthLoading());
+      try {
+        // No profileSelectToken here on purpose. The interceptor attaches the
+        // live access token and the route accepts a non-pending claim for
+        // exactly this case.
+        final res = await dio.post(
+          '/auth/switch-profile',
+          data: {'profileId': e.profileId},
+        );
+
+        // Order matters. Swap the token FIRST so nothing can refetch under the
+        // old profile, then drop the previous flat's cached bills / ledger /
+        // complaints and its queued writes. Replaying 101's outbox against 201
+        // would post real money to the wrong flat.
+        await tokens.save(res.data['tokens']['accessToken'],
+            res.data['tokens']['refreshToken']);
+        await OfflineCache.clear();
+        await OfflineOutbox.clear();
+
+        emit(await _hydrate(res.data['role']));
+      } on DioException catch (err) {
+        emit(AuthError(apiErrorMessage(err, 'Could not switch flat')));
+      }
+    });
+
     on<SessionRestored>(
         (e, emit) => emit(AuthAuthed(e.role, e.user, e.claims)));
     on<LogoutRequested>((e, emit) async {
@@ -131,6 +175,7 @@ if (needsSelect) {
       emit(AuthInitial());
     });
   }
+
   Future<AuthAuthed> _hydrate(String role) async {
     final me = await dio.get('/auth/me');
     final user = Map<String, dynamic>.from(me.data['user']);
