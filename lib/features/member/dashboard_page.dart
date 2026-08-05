@@ -584,6 +584,12 @@ class _QuickActions extends StatelessWidget {
         t.success,
         () => memberTabNotifier.value = 3
       ),
+      (
+        Icons.pool_rounded,
+        'Amenities',
+        t.brand2,
+        () => context.push('/amenities')
+      ),
     ];
     return Row(
       children: actions.map((a) {

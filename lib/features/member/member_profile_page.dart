@@ -10,6 +10,7 @@ import 'profile/tenant_details_page.dart';
 import 'sos_control.dart';
 import 'pulse/member_display.dart';
 import 'pulse/pulse.dart';
+import '../commercial/commercial_capabilities.dart';
 
 /// Profile tab.
 ///
@@ -31,6 +32,7 @@ class MemberProfilePage extends StatelessWidget {
     final user = auth is AuthAuthed ? auth.user : const <String, dynamic>{};
     final claims = auth is AuthAuthed ? auth.claims : const <String, dynamic>{};
     final occupancyType = claims['occupancyType']?.toString();
+    final commercial = CommercialCapabilities.fromAuthUser(user);
 
     // Tenants get the tenant environment, not a crippled owner page.
     if (occupancyType == 'Tenant') return const TenantProfilePage();
@@ -126,6 +128,39 @@ class MemberProfilePage extends StatelessWidget {
               ),
             ],
           ),
+
+          // ---- Society shops ----------------------------------------------
+          // Rendered only when the server says so. Residents of a society that
+          // never turns the module on see the page exactly as it is today.
+          if (commercial.showsAnything) ...[
+            const PulseSectionLabel('Society shops'),
+            PulseGroup(
+              children: [
+                if (commercial.directory)
+                  PulseRow(
+                    icon: Icons.storefront_outlined,
+                    label: 'Shops & services',
+                    sublabel: 'Businesses inside your society',
+                    onTap: () {
+                      Haptics.light();
+                      context.push('/commercial');
+                    },
+                  ),
+                if (commercial.manageBusinessProfile)
+                  PulseRow(
+                    icon: Icons.store_mall_directory_outlined,
+                    label: 'My business',
+                    sublabel: commercial.hasProfile
+                        ? '${commercial.tradeName} - ${commercial.visibilityStatus}'
+                        : 'No listing yet',
+                    onTap: () {
+                      Haptics.light();
+                      context.push('/commercial/me');
+                    },
+                  ),
+              ],
+            ),
+          ],
 
           // ---- My Tenancy -------------------------------------------------
           // The three ported tenancy screens, grouped so it is obvious they

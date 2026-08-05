@@ -181,6 +181,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final user = Map<String, dynamic>.from(me.data['user']);
     if (me.data['member'] != null) user['member'] = me.data['member'];
     if (me.data['society'] != null) user['society'] = me.data['society'];
+    // Additive server-driven capabilities. Absent on an older server, in which
+    // case every commercial entry point stays hidden and this build behaves
+    // exactly as it did before.
+    if (me.data['capabilities'] != null) {
+      user['capabilities'] = me.data['capabilities'];
+    }
+    if (me.data['businessProfile'] != null) {
+      user['businessProfile'] = me.data['businessProfile'];
+    }
     return AuthAuthed(
       role,
       user,

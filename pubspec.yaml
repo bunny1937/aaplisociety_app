@@ -38,6 +38,8 @@ dependencies:
   printing: ^5.14.2
   pdf: ^3.11.1
   image: ^4.2.0
+  # Amenity QR check-in. Camera-only barcode scanning; no extra services.
+  mobile_scanner: ^5.2.3
   cupertino_icons: ^1.0.9
 dev_dependencies:
   flutter_test:

@@ -31,6 +31,15 @@ import '../features/onboarding/data/onboarding_api.dart';
 import '../features/onboarding/existing_account_page.dart';
 import '../features/onboarding/new_account_setup_page.dart';
 import '../features/onboarding/onboarding_gate_page.dart';
+import '../features/amenities/amenities_page.dart';
+import '../features/amenities/amenity_detail_page.dart';
+import '../features/amenities/amenity_qr_scan_page.dart';
+import '../features/amenities/my_attendance_page.dart';
+import '../features/amenities/amenity_events_page.dart';
+import '../features/commercial/commercial_directory_page.dart';
+import '../features/commercial/business_detail_page.dart';
+import '../features/commercial/my_business_page.dart';
+import '../features/commercial/business_profile_edit_page.dart';
 
 GoRouter buildRouter() => GoRouter(
       initialLocation: '/',
@@ -156,12 +165,49 @@ GoRouter buildRouter() => GoRouter(
         GoRoute(
             path: '/notifications',
             pageBuilder: (c, s) => _fade(const NotificationCenterPage(), s)),
+        // ── Amenities ─────────────────────────────────────────
+        // Reachable from the member home shell, and from the QR deep link
+        // applisociety://amenities/checkin?t=<token>, which lands on /amenities/scan.
+        GoRoute(
+            path: '/amenities',
+            pageBuilder: (c, s) => _fade(const AmenitiesPage(), s)),
+        GoRoute(
+            path: '/amenities/scan',
+            pageBuilder: (c, s) => _fade(const AmenityQrScanPage(), s)),
+        GoRoute(
+            path: '/amenities/attendance',
+            pageBuilder: (c, s) => _fade(const MyAttendancePage(), s)),
+        GoRoute(
+            path: '/amenities/events',
+            pageBuilder: (c, s) => _fade(const AmenityEventsPage(), s)),
+        // Kept last: a literal path above would otherwise be swallowed by :id.
+        GoRoute(
+            path: '/amenities/:id',
+            pageBuilder: (c, s) => _fade(
+                AmenityDetailPage(amenityId: s.pathParameters['id'] ?? ''), s)),
         // The services/contacts directory - ambulance, fire, society office,
         // electricity, plumber. Linked from BOTH the owner profile and the
         // tenant profile; it existed in neither before.
         GoRoute(
             path: '/essential-contacts',
             pageBuilder: (c, s) => _fade(const EssentialContactsPage(), s)),
+        // Commercial (shops and offices inside the society). Additive routes
+        // only: no existing path changes, and nothing here is reachable unless
+        // /auth/me returns the matching capability, so an older server simply
+        // never surfaces an entry point to them.
+        GoRoute(
+            path: '/commercial',
+            pageBuilder: (c, s) => _fade(const CommercialDirectoryPage(), s)),
+        GoRoute(
+            path: '/commercial/business/:id',
+            pageBuilder: (c, s) => _fade(
+                BusinessDetailPage(businessId: s.pathParameters['id'] ?? ''), s)),
+        GoRoute(
+            path: '/commercial/me',
+            pageBuilder: (c, s) => _fade(const MyBusinessPage(), s)),
+        GoRoute(
+            path: '/commercial/me/edit',
+            pageBuilder: (c, s) => _fade(const BusinessProfileEditPage(), s)),
         GoRoute(
             path: '/profile/basic-details',
             pageBuilder: (c, s) {
