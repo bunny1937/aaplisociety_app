@@ -30,7 +30,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/haptics.dart';
-import '../../onboarding/data/onboarding_api.dart' show FlatSummary;
+import '../../onboarding/data/onboarding_api.dart' show ProfileSummary;
 
 typedef ProfileSelected = Future<String?> Function(String profileId);
 
@@ -44,7 +44,7 @@ class FlatPickerSheet extends StatefulWidget {
   });
 
   final String name;
-  final List<FlatSummary> flats;
+  final List<ProfileSummary> flats;
 
   /// Performs the switch-profile call. Returns null on success, or an error
   /// message to display.
@@ -57,7 +57,7 @@ class FlatPickerSheet extends StatefulWidget {
   static Future<bool> show(
     BuildContext context, {
     required String name,
-    required List<FlatSummary> flats,
+    required List<ProfileSummary> flats,
     required ProfileSelected onSelect,
     required VoidCallback onCancel,
   }) async {
@@ -90,12 +90,12 @@ class _FlatPickerSheetState extends State<FlatPickerSheet> {
   String? _busyProfileId;
   String? _error;
 
-  Future<void> _pick(FlatSummary flat) async {
+  Future<void> _pick(ProfileSummary flat) async {
     if (_busyProfileId != null) return;
     if (flat.status.toLowerCase() != 'active') {
       Haptics.heavy();
-      setState(() => _error =
-          'Flat ${flat.flatNo} is marked inactive. Contact your society admin.');
+      final label = flat.isCommercial ? 'Shop ${flat.shopNo}' : 'Flat ${flat.flatNo}';
+      setState(() => _error = '$label is marked inactive. Contact your society admin.');
       return;
     }
 
@@ -312,7 +312,7 @@ class _FlatTile extends StatefulWidget {
     required this.onTap,
   });
 
-  final FlatSummary flat;
+  final ProfileSummary flat;
   final bool busy;
   final bool inactive;
   final VoidCallback onTap;
@@ -327,10 +327,12 @@ class _FlatTileState extends State<_FlatTile> {
   @override
   Widget build(BuildContext context) {
     final flat = widget.flat;
-    final isOwner = flat.occupancyType.toLowerCase() == 'owner';
+    final isOwner = !flat.isCommercial && flat.occupancyType?.toLowerCase() == 'owner';
     final accent = widget.inactive
         ? const Color(0xFF6B7280)
-        : (isOwner ? const Color(0xFF818CF8) : const Color(0xFF34D399));
+        : (flat.isCommercial
+            ? const Color(0xFFF59E0B) // amber — visually distinct from the flat owner/tenant indigo/green
+            : (isOwner ? const Color(0xFF818CF8) : const Color(0xFF34D399)));
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
@@ -371,15 +373,17 @@ class _FlatTileState extends State<_FlatTile> {
                   borderRadius: BorderRadius.circular(13),
                   border: Border.all(color: accent.withValues(alpha: 0.32)),
                 ),
-                child: Text(
-                  flat.flatNo,
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w700,
-                    color: accent,
-                    letterSpacing: -0.5,
-                  ),
-                ),
+                child: flat.isCommercial
+                    ? Icon(Icons.storefront_rounded, color: accent, size: 22)
+                    : Text(
+                        flat.flatNo ?? '',
+                        style: GoogleFonts.robotoMono(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
               ),
               const SizedBox(width: 15),
               Expanded(
@@ -390,9 +394,11 @@ class _FlatTileState extends State<_FlatTile> {
                       children: [
                         Flexible(
                           child: Text(
-                            flat.wing != null && flat.wing!.isNotEmpty
-                                ? 'Wing ${flat.wing} \u00b7 ${flat.flatNo}'
-                                : 'Flat ${flat.flatNo}',
+                            flat.isCommercial
+                                ? (flat.tradeName ?? 'Shop ${flat.shopNo ?? ""}')
+                                : (flat.wing != null && flat.wing!.isNotEmpty
+                                    ? 'Wing ${flat.wing} \u00b7 ${flat.flatNo}'
+                                    : 'Flat ${flat.flatNo}'),
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
                               fontSize: 15,
@@ -424,7 +430,9 @@ class _FlatTileState extends State<_FlatTile> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${flat.societyName} \u00b7 ${flat.occupancyType}',
+                      flat.isCommercial
+                          ? '${flat.societyName} \u00b7 ${flat.unitKind ?? "Shop"} ${flat.shopNo ?? ""}'
+                          : '${flat.societyName} \u00b7 ${flat.occupancyType}',
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         fontSize: 12.3,

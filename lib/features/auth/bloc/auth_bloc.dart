@@ -4,7 +4,7 @@ import '../../../core/network/api_error.dart';
 import '../../../core/storage/token_store.dart';
 import '../../../core/storage/offline_cache.dart';
 import '../../../core/storage/offline_outbox.dart';
-import '../../onboarding/data/onboarding_api.dart' show FlatSummary;
+import '../../onboarding/data/onboarding_api.dart' show ProfileSummary;
 
 sealed class AuthEvent {}
 
@@ -36,9 +36,10 @@ class SwitchProfileInSession extends AuthEvent {
 
 class SessionRestored extends AuthEvent {
   final String role;
+  final String kind;
   final Map<String, dynamic> user;
   final Map<String, dynamic> claims;
-  SessionRestored(this.role, this.user, this.claims);
+  SessionRestored(this.role, this.kind, this.user, this.claims);
 }
 
 class LogoutRequested extends AuthEvent {}
@@ -51,16 +52,21 @@ class AuthLoading extends AuthState {}
 
 class AuthAuthed extends AuthState {
   final String role;
+  final String kind;
   final Map<String, dynamic> user;
   final Map<String, dynamic> claims;
   final bool mustChangePassword;
-  AuthAuthed(this.role, this.user, this.claims,
+  AuthAuthed(this.role, this.kind, this.user, this.claims,
       {this.mustChangePassword = false});
 }
 
-// Where each role lands after auth. Shared by login + profile-select so the
-// two screens can't drift on where a given role's home actually is.
-String homeRouteForRole(String role) {
+// Where each role/kind lands after auth. Shared by login + profile-select so
+// the screens can't drift on where a given profile actually goes. Commercial
+// routes to /shop regardless of role — a shop owner is never Admin/Security
+// on that profile, but checking kind first (not just role) keeps this correct
+// if that ever changes.
+String homeRouteForProfile(String role, String kind) {
+  if (kind == 'Commercial') return '/shop';
   if (role == 'Admin' || role == 'Secretary' || role == 'Accountant') {
     return '/admin';
   }
@@ -70,7 +76,7 @@ String homeRouteForRole(String role) {
 
 class AuthNeedsProfile extends AuthState {
   final String name;
-  final List<FlatSummary> profiles;
+  final List<ProfileSummary> profiles;
   final String selectToken;
   AuthNeedsProfile(this.name, this.profiles, this.selectToken);
 }
@@ -98,7 +104,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           final token = (res.data['profileSelectToken'] ??
               res.data['selectToken']) as String?;
           final profiles = ((res.data['profiles'] as List?) ?? const [])
-              .map((p) => FlatSummary.fromJson(Map<String, dynamic>.from(p as Map)))
+              .map((p) => ProfileSummary.fromJson(Map<String, dynamic>.from(p as Map)))
               .toList();
           if (token == null || profiles.isEmpty) {
             emit(AuthError(
@@ -165,7 +171,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     on<SessionRestored>(
-        (e, emit) => emit(AuthAuthed(e.role, e.user, e.claims)));
+        (e, emit) => emit(AuthAuthed(e.role, e.kind, e.user, e.claims)));
     on<LogoutRequested>((e, emit) async {
       await tokens.clear();
       // Shared guard phones must not show one account's cached bills,
@@ -181,10 +187,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final user = Map<String, dynamic>.from(me.data['user']);
     if (me.data['member'] != null) user['member'] = me.data['member'];
     if (me.data['society'] != null) user['society'] = me.data['society'];
+    if (me.data['shop'] != null) user['shop'] = me.data['shop'];
+    final claims = Map<String, dynamic>.from(me.data['claims']);
     return AuthAuthed(
       role,
+      (claims['kind'] ?? 'Residential').toString(),
       user,
-      Map<String, dynamic>.from(me.data['claims']),
+      claims,
       mustChangePassword: user['mustChangePassword'] == true,
     );
   }

@@ -8,7 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/haptics.dart';
 import '../../core/widgets/press_effect.dart';
 import '../../core/widgets/app_toast.dart';
-import '../onboarding/data/onboarding_api.dart' show FlatSummary;
+import '../onboarding/data/onboarding_api.dart' show ProfileSummary;
 import 'bloc/auth_bloc.dart';
 
 class ProfileSelectPage extends StatefulWidget {
@@ -56,9 +56,9 @@ class _ProfileSelectPageState extends State<ProfileSelectPage> {
                 Haptics.success();
                 if (state.mustChangePassword) {
                   context.go('/change-password',
-                      extra: {'forced': true, 'role': state.role});
+                      extra: {'forced': true, 'role': state.role, 'kind': state.kind});
                 } else {
-                  context.go(homeRouteForRole(state.role));
+                  context.go(homeRouteForProfile(state.role, state.kind));
                 }
               }
             },
@@ -66,7 +66,7 @@ class _ProfileSelectPageState extends State<ProfileSelectPage> {
               if (state is AuthNeedsProfile) _selectToken = state.selectToken;
               final profiles = state is AuthNeedsProfile
                   ? state.profiles
-                  : const <FlatSummary>[];
+                  : const <ProfileSummary>[];
               final loading = state is AuthLoading;
               return Stack(
                 children: [

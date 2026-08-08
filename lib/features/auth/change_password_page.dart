@@ -19,8 +19,9 @@ class ChangePasswordPage extends StatefulWidget {
   /// back to and no way to skip it.
   final bool forced;
   final String? roleForRedirect;
+  final String? kindForRedirect;
   const ChangePasswordPage(
-      {super.key, this.forced = false, this.roleForRedirect});
+      {super.key, this.forced = false, this.roleForRedirect, this.kindForRedirect});
   @override
   State<ChangePasswordPage> createState() => _ChangePasswordPageState();
 }
@@ -63,7 +64,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       setState(() => _busy = false);
       showAppToast(context, 'Password updated', kind: AppToastKind.success);
       if (widget.forced) {
-        context.go(homeRouteForRole(widget.roleForRedirect ?? 'Member'));
+        context.go(homeRouteForProfile(
+            widget.roleForRedirect ?? 'Member', widget.kindForRedirect ?? 'Residential'));
       } else {
         Navigator.of(context).maybePop();
       }

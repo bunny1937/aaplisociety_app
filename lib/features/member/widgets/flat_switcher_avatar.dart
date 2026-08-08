@@ -45,15 +45,18 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/haptics.dart';
 import '../../auth/bloc/auth_bloc.dart';
-import '../../onboarding/data/onboarding_api.dart' show FlatSummary;
+import '../../onboarding/data/onboarding_api.dart' show ProfileSummary;
 
 const _kOwner = Color(0xFF818CF8);
 const _kTenant = Color(0xFF34D399);
 const _kSheetTop = Color(0xFF141C3A);
 const _kSheetBottom = Color(0xFF0D1430);
 
-Color _accentFor(String occupancyType) =>
-    occupancyType.toLowerCase() == 'tenant' ? _kTenant : _kOwner;
+Color _accentFor(ProfileSummary? p) {
+  if (p == null) return _kOwner;
+  if (p.isCommercial) return const Color(0xFFF59E0B);
+  return p.occupancyType?.toLowerCase() == 'tenant' ? _kTenant : _kOwner;
+}
 
 class FlatSwitcherAvatar extends StatefulWidget {
   const FlatSwitcherAvatar({
@@ -71,7 +74,7 @@ class FlatSwitcherAvatar extends StatefulWidget {
 
 class _FlatSwitcherAvatarState extends State<FlatSwitcherAvatar>
     with TickerProviderStateMixin {
-  List<FlatSummary> _flats = const [];
+  List<ProfileSummary> _flats = const [];
   String _activeId = '';
   String _name = '';
   bool _loaded = false;
@@ -101,7 +104,7 @@ class _FlatSwitcherAvatarState extends State<FlatSwitcherAvatar>
       if (!mounted) return;
       setState(() {
         _flats = ((res.data['profiles'] as List?) ?? const [])
-            .map((p) => FlatSummary.fromJson(Map<String, dynamic>.from(p as Map)))
+            .map((p) => ProfileSummary.fromJson(Map<String, dynamic>.from(p as Map)))
             .toList();
         _activeId = (res.data['activeProfileId'] ?? '').toString();
         _name = (res.data['name'] ?? '').toString();
@@ -114,7 +117,7 @@ class _FlatSwitcherAvatarState extends State<FlatSwitcherAvatar>
     }
   }
 
-  FlatSummary? get _active {
+  ProfileSummary? get _active {
     for (final f in _flats) {
       if (f.profileId == _activeId) return f;
     }
@@ -153,8 +156,8 @@ class _FlatSwitcherAvatarState extends State<FlatSwitcherAvatar>
   @override
   Widget build(BuildContext context) {
     final flat = _active;
-    final label = flat?.flatNo ?? '';
-    final accent = _accentFor(flat?.occupancyType ?? 'Owner');
+    final label = flat == null ? '' : (flat.isCommercial ? '' : (flat.flatNo ?? ''));
+    final accent = _accentFor(flat);
     final s = widget.size;
 
     final avatar = AnimatedBuilder(
@@ -207,17 +210,19 @@ class _FlatSwitcherAvatarState extends State<FlatSwitcherAvatar>
           ),
         );
       },
-      child: Text(
-        label.isEmpty ? '\u2022' : label,
-        maxLines: 1,
-        overflow: TextOverflow.clip,
-        style: GoogleFonts.robotoMono(
-          fontSize: label.length > 3 ? s * 0.27 : s * 0.33,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.5,
-          color: accent,
-        ),
-      ),
+      child: flat != null && flat.isCommercial
+          ? Icon(Icons.storefront_rounded, color: accent, size: s * 0.42)
+          : Text(
+              label.isEmpty ? '\u2022' : label,
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+              style: GoogleFonts.robotoMono(
+                fontSize: label.length > 3 ? s * 0.27 : s * 0.33,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+                color: accent,
+              ),
+            ),
     );
 
     if (!_loaded || !_canSwitch) return avatar;
@@ -286,7 +291,7 @@ class _SwitcherSheet extends StatelessWidget {
   });
 
   final String name;
-  final List<FlatSummary> flats;
+  final List<ProfileSummary> flats;
   final String activeId;
 
   @override
@@ -380,7 +385,7 @@ class _SwitcherSheet extends StatelessWidget {
                       final i = e.key;
                       final f = e.value;
                       final active = f.profileId == activeId;
-                      final accent = _accentFor(f.occupancyType);
+                      final accent = _accentFor(f);
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: _JellyRow(
@@ -436,7 +441,7 @@ class _JellyRow extends StatefulWidget {
 
   final Color accent;
   final bool active;
-  final FlatSummary flat;
+  final ProfileSummary flat;
   final VoidCallback onPicked;
 
   @override
@@ -471,8 +476,11 @@ class _JellyRowState extends State<_JellyRow>
     final f = widget.flat;
     final accent = widget.accent;
     final active = widget.active;
+    final isCommercial = f.isCommercial;
     final wing = f.wing ?? '';
-    final unit = wing.trim().isEmpty ? f.flatNo : '$wing-${f.flatNo}';
+    final unit = isCommercial
+        ? (f.tradeName ?? 'Shop ${f.shopNo ?? ""}')
+        : (wing.trim().isEmpty ? (f.flatNo ?? '') : '$wing-${f.flatNo}');
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -520,14 +528,16 @@ class _JellyRowState extends State<_JellyRow>
                 border: Border.all(
                     color: accent.withValues(alpha: 0.34), width: 1.2),
               ),
-              child: Text(
-                f.flatNo.isEmpty ? '\u2022' : f.flatNo,
-                style: GoogleFonts.robotoMono(
-                  fontSize: f.flatNo.length > 3 ? 12 : 14,
-                  fontWeight: FontWeight.w700,
-                  color: accent,
-                ),
-              ),
+              child: isCommercial
+                  ? Icon(Icons.storefront_rounded, size: 20, color: accent)
+                  : Text(
+                      (f.flatNo ?? '').isEmpty ? '\u2022' : f.flatNo!,
+                      style: GoogleFonts.robotoMono(
+                        fontSize: (f.flatNo?.length ?? 0) > 3 ? 12 : 14,
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                      ),
+                    ),
             ),
             const SizedBox(width: 13),
             Expanded(
@@ -544,7 +554,9 @@ class _JellyRowState extends State<_JellyRow>
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${f.societyName}  \u00b7  ${f.occupancyType}',
+                    isCommercial
+                        ? '${f.societyName}  \u00b7  ${f.unitKind ?? "Shop"}'
+                        : '${f.societyName}  \u00b7  ${f.occupancyType}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(

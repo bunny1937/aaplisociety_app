@@ -44,7 +44,7 @@ class NewAccountSetupPage extends StatefulWidget {
   final String token;
   final String email;
   final String? name;
-  final List<FlatSummary> flats;
+  final List<ProfileSummary> flats;
 
   @override
   State<NewAccountSetupPage> createState() => _NewAccountSetupPageState();
@@ -63,7 +63,7 @@ class _NewAccountSetupPageState extends State<NewAccountSetupPage> {
   bool _busy = false;
   bool _done = false;
   String? _serverError;
-  List<FlatSummary> _activated = const [];
+  List<ProfileSummary> _activated = const [];
 
   // ── Live rules, worded exactly like the server ──────────────────────────
   static final _usernameRe = RegExp(r'^[a-z0-9_-]{4,30}$');
@@ -102,7 +102,7 @@ class _NewAccountSetupPageState extends State<NewAccountSetupPage> {
     final first = (widget.name ?? '').trim().split(RegExp(r'\s+')).first.toLowerCase();
     if (first.length >= 4 && lower.contains(first)) return false;
     for (final f in widget.flats) {
-      final flat = f.flatNo.toLowerCase();
+      final flat = (f.flatNo ?? '').toLowerCase();
       if (flat.length >= 3 && lower.contains(flat)) return false;
     }
     return true;

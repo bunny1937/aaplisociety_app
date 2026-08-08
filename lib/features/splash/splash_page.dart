@@ -84,15 +84,14 @@ class _SplashPageState extends State<SplashPage> {
       final me = await context.read<Dio>().get('/auth/me');
       final claims = Map<String, dynamic>.from(me.data['claims']);
       final role = claims['role'] as String;
+      final kind = (claims['kind'] ?? 'Residential').toString();
       if (!mounted) return;
       final user = Map<String, dynamic>.from(me.data['user']);
       if (me.data['member'] != null) user['member'] = me.data['member'];
       if (me.data['society'] != null) user['society'] = me.data['society'];
-      context.read<AuthBloc>().add(SessionRestored(role, user, claims));
-      final staff =
-          role == 'Admin' || role == 'Secretary' || role == 'Accountant';
-      context.go(
-          staff ? '/admin' : (role == 'Security' ? '/security' : '/member'));
+      if (me.data['shop'] != null) user['shop'] = me.data['shop'];
+      context.read<AuthBloc>().add(SessionRestored(role, kind, user, claims));
+      context.go(homeRouteForProfile(role, kind));
     } on DioException catch (err) {
       if (err.response?.statusCode == 401) {
         await TokenStore().clear();

@@ -100,9 +100,9 @@ class _LoginPageState extends State<LoginPage> {
                           Haptics.success();
                           if (state.mustChangePassword) {
                             context.go('/change-password',
-                                extra: {'forced': true, 'role': state.role});
+                                extra: {'forced': true, 'role': state.role, 'kind': state.kind});
                           } else {
-                            context.go(homeRouteForRole(state.role));
+                            context.go(homeRouteForProfile(state.role, state.kind));
                           }
                         } else if (state is AuthNeedsProfile) {
                           FlatPickerSheet.show(

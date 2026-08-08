@@ -15,40 +15,74 @@ enum LookupOutcome {
   proofRequired,
 }
 
-class FlatSummary {
-  const FlatSummary({
+class ProfileSummary {
+  const ProfileSummary({
     required this.profileId,
+    required this.kind,
     required this.label,
-    required this.flatNo,
     required this.societyName,
-    required this.occupancyType,
+    this.flatNo,
     this.wing,
+    this.occupancyType,
+    this.shopNo,
+    this.unitKind,
+    this.tradeName,
     this.isPrimary = false,
     this.split = false,
     this.status = 'Active',
   });
 
   final String profileId;
+  final String kind; // 'Residential' | 'Commercial'
   final String label;
-  final String flatNo;
-  final String? wing;
   final String societyName;
-  final String occupancyType;
+
+  // Residential-only.
+  final String? flatNo;
+  final String? wing;
+  final String? occupancyType;
+
+  // Commercial-only.
+  final String? shopNo;
+  final String? unitKind;
+  final String? tradeName;
+
   final bool isPrimary;
   final bool split;
   final String status;
 
-  factory FlatSummary.fromJson(Map<String, dynamic> j) => FlatSummary(
+  bool get isCommercial => kind == 'Commercial';
+
+  factory ProfileSummary.fromJson(Map<String, dynamic> j) {
+    final kind = (j['kind'] ?? 'Residential').toString();
+    if (kind == 'Commercial') {
+      return ProfileSummary(
         profileId: (j['profileId'] ?? '').toString(),
-        label: (j['label'] ?? j['flatNo'] ?? '').toString(),
-        flatNo: (j['flatNo'] ?? '').toString(),
-        wing: j['wing'] as String?,
+        kind: kind,
+        label: (j['label'] ?? j['shopNo'] ?? '').toString(),
         societyName: (j['societyName'] ?? 'Society').toString(),
-        occupancyType: (j['occupancyType'] ?? 'Owner').toString(),
+        wing: j['wing'] as String?,
+        shopNo: j['shopNo'] as String?,
+        unitKind: j['unitKind'] as String?,
+        tradeName: j['tradeName'] as String?,
         isPrimary: j['isPrimary'] == true,
         split: j['split'] == true,
         status: (j['status'] ?? 'Active').toString(),
       );
+    }
+    return ProfileSummary(
+      profileId: (j['profileId'] ?? '').toString(),
+      kind: kind,
+      label: (j['label'] ?? j['flatNo'] ?? '').toString(),
+      societyName: (j['societyName'] ?? 'Society').toString(),
+      flatNo: (j['flatNo'] ?? '').toString(),
+      wing: j['wing'] as String?,
+      occupancyType: (j['occupancyType'] ?? 'Owner').toString(),
+      isPrimary: j['isPrimary'] == true,
+      split: j['split'] == true,
+      status: (j['status'] ?? 'Active').toString(),
+    );
+  }
 }
 
 class LookupResult {
@@ -68,7 +102,7 @@ class LookupResult {
   final String? maskedEmail;
   final String? name;
   final String? username;
-  final List<FlatSummary> flats;
+  final List<ProfileSummary> flats;
   final bool splitAccount;
   final int totalFlats;
 
@@ -97,7 +131,7 @@ class LookupResult {
         name: j['name'] as String?,
         username: j['username'] as String?,
         flats: ((j['flats'] as List?) ?? const [])
-            .map((e) => FlatSummary.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map((e) => ProfileSummary.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList(),
         splitAccount: j['splitAccount'] == true,
         totalFlats: (j['totalFlats'] as num?)?.toInt() ?? 0,
@@ -116,7 +150,7 @@ class ActivateResult {
   final bool success;
   final String message;
   final String? username;
-  final List<FlatSummary> flats;
+  final List<ProfileSummary> flats;
 
   /// Which input the server blamed, so the UI can focus and shake that field
   /// instead of showing a generic banner.
@@ -182,7 +216,7 @@ class OnboardingApi {
         message: (j['message'] ?? 'Your account is ready.').toString(),
         username: j['username'] as String?,
         flats: ((j['activatedFlats'] as List?) ?? const [])
-            .map((e) => FlatSummary.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map((e) => ProfileSummary.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList(),
       );
     } on DioException catch (e) {

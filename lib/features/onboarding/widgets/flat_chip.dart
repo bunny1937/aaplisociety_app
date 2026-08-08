@@ -19,7 +19,7 @@ class FlatChip extends StatelessWidget {
     this.dense = false,
   });
 
-  final FlatSummary flat;
+  final ProfileSummary flat;
   final bool selected;
   final VoidCallback? onTap;
   final Widget? trailing;
@@ -27,8 +27,10 @@ class FlatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOwner = flat.occupancyType.toLowerCase() == 'owner';
-    final accent = isOwner ? const Color(0xFF818CF8) : const Color(0xFF34D399);
+    final isOwner = !flat.isCommercial && flat.occupancyType?.toLowerCase() == 'owner';
+    final accent = flat.isCommercial
+        ? const Color(0xFFF59E0B) // amber — visually distinct from the flat owner/tenant indigo/green
+        : (isOwner ? const Color(0xFF818CF8) : const Color(0xFF34D399));
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -71,15 +73,17 @@ class FlatChip extends StatelessWidget {
                     borderRadius: BorderRadius.circular(11),
                     border: Border.all(color: accent.withValues(alpha: 0.3)),
                   ),
-                  child: Text(
-                    flat.flatNo,
-                    style: GoogleFonts.robotoMono(
-                      fontSize: dense ? 14 : 15.5,
-                      fontWeight: FontWeight.w700,
-                      color: accent,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
+                  child: flat.isCommercial
+                      ? Icon(Icons.storefront_rounded, color: accent, size: dense ? 20 : 22)
+                      : Text(
+                          flat.flatNo ?? '',
+                          style: GoogleFonts.robotoMono(
+                            fontSize: dense ? 14 : 15.5,
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 13),
                 Expanded(
@@ -90,9 +94,11 @@ class FlatChip extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              flat.wing != null && flat.wing!.isNotEmpty
-                                  ? 'Wing ${flat.wing} \u00b7 Flat ${flat.flatNo}'
-                                  : 'Flat ${flat.flatNo}',
+                              flat.isCommercial
+                                  ? (flat.tradeName ?? 'Shop ${flat.shopNo ?? ""}')
+                                  : (flat.wing != null && flat.wing!.isNotEmpty
+                                      ? 'Wing ${flat.wing} \u00b7 Flat ${flat.flatNo}'
+                                      : 'Flat ${flat.flatNo}'),
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.inter(
                                 fontSize: dense ? 13.5 : 14.5,
@@ -109,7 +115,9 @@ class FlatChip extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${flat.societyName} \u00b7 ${flat.occupancyType}',
+                        flat.isCommercial
+                            ? '${flat.societyName} \u00b7 ${flat.unitKind ?? "Shop"}'
+                            : '${flat.societyName} \u00b7 ${flat.occupancyType}',
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                           fontSize: 12,

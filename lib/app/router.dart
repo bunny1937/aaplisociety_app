@@ -4,6 +4,7 @@ import '../features/splash/splash_page.dart';
 import '../features/auth/login_page.dart';
 import '../features/auth/profile_select_page.dart';
 import '../features/member/member_shell.dart';
+import '../features/shop/shop_shell.dart';
 import '../features/member/bills_page.dart';
 import '../features/member/ledger_page.dart';
 import '../features/tenant/tenant_profile_page.dart';
@@ -54,7 +55,7 @@ GoRouter buildRouter() => GoRouter(
                   token: (extra['token'] ?? '') as String,
                   email: (extra['email'] ?? '') as String,
                   name: extra['name'] as String?,
-                  flats: (extra['flats'] as List<FlatSummary>?) ?? const [],
+                  flats: (extra['flats'] as List<ProfileSummary>?) ?? const [],
                 ),
                 s,
               );
@@ -90,6 +91,9 @@ GoRouter buildRouter() => GoRouter(
             path: '/member',
             pageBuilder: (c, s) => _fade(const MemberShell(), s)),
         GoRoute(
+            path: '/shop',
+            pageBuilder: (c, s) => _fade(const ShopShell(), s)),
+        GoRoute(
             path: '/security',
             pageBuilder: (c, s) => _fade(const SecurityShell(), s)),
         GoRoute(
@@ -103,6 +107,7 @@ GoRouter buildRouter() => GoRouter(
                   ChangePasswordPage(
                     forced: extra?['forced'] == true,
                     roleForRedirect: extra?['role'] as String?,
+                    kindForRedirect: extra?['kind'] as String?,
                   ),
                   s);
             }),

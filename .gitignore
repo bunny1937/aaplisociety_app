@@ -19,7 +19,8 @@ test/
 *.ipr
 *.iws
 .idea/
-
+DEBUG_SMART.txt
+app_web.md
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
@@ -53,6 +54,11 @@ app.*.map.json
 /android/key.properties
 /android/app/*.jks
 /android/app/*.keystore
+
+# Firebase project config — real API_KEY/PROJECT_ID/GOOGLE_APP_ID, never
+# committed. Get this file from Firebase console (or a teammate) per-machine.
+ios/Runner/GoogleService-Info.plist
+ios/Runner/Info.plist
 MEMBER_V2_DESIGN_PORT.md                                   
 MEMBER_V2_GAPS.md                                          
 NEEDSFIXmd.md                                                
